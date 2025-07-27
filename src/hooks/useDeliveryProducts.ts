@@ -105,13 +105,14 @@ export const useDeliveryProducts = () => {
       if (error) throw error;
       
       // Check if data was returned from the insert operation
-      if (!data) {
+      if (!data || (Array.isArray(data) && data.length === 0)) {
         throw new Error('Resposta inesperada do servidor - nenhum dado retornado após criação');
       }
       
-      setProducts(prev => [...prev, data]);
+      const newProduct = Array.isArray(data) ? data[0] : data;
+      setProducts(prev => [...prev, newProduct]);
       console.log('✅ Produto criado:', data);
-      return data;
+      return newProduct;
     } catch (err) {
       console.error('❌ Erro ao criar produto:', err);
       throw new Error(err instanceof Error ? err.message : 'Erro ao criar produto');
@@ -212,7 +213,7 @@ export const useDeliveryProducts = () => {
         throw new Error('Resposta inesperada do servidor - nenhum dado retornado');
       }
 
-      const updatedProduct = data[0];
+      const updatedProduct = Array.isArray(data) ? data[0] : data;
       console.log('✅ Produto atualizado no banco:', updatedProduct);
 
       // Update local state

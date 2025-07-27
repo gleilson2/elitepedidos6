@@ -142,8 +142,9 @@ export const usePDVProducts = () => {
 
       if (error) throw error;
       
-      setProducts(prev => prev.map(p => p.id === id ? data : p));
-      return data;
+      const updatedProduct = Array.isArray(data) ? data[0] : data;
+      setProducts(prev => prev.map(p => p.id === id ? updatedProduct : p));
+      return updatedProduct;
     } catch (err) {
       throw new Error(err instanceof Error ? err.message : 'Erro ao atualizar produto');
     }
