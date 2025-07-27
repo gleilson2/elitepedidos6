@@ -130,148 +130,35 @@ export const useDeliveryProducts = () => {
 
   const updateProduct = useCallback(async (id: string, updates: Partial<DeliveryProduct>) => {
     try {
-      console.log('✏️ Atualizando produto:', id, updates);
-
-      // Verificar se é um ID temporário
-      if (id.startsWith('temp-') || id.startsWith('demo-')) {
-        throw new Error('Não é possível atualizar um produto temporário. Crie o produto primeiro.');
-      }
-
-      // Check if Supabase is configured
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
       if (!supabaseUrl || supabaseUrl.includes('placeholder')) {
         throw new Error('Supabase não configurado. Configure as variáveis de ambiente para usar esta funcionalidade.');
       }
 
-      // Primeiro verificar se o produto existe
-      const { data: existingProduct, error: checkError } = await supabase
-        .from('delivery_products')
-        .select('id')
-        .eq('id', id)
-        .maybeSingle();
-
-      if (checkError) {
-        console.error('❌ Erro ao verificar existência do produto:', checkError);
-        throw new Error(`Erro ao verificar produto: ${checkError.message}`);
-      }
-
-      if (!existingProduct) {
-        console.warn(`⚠️ Produto ${id} não encontrado no banco de dados`);
-        throw new Error(`Produto não encontrado no banco de dados. Ele pode ter sido excluído por outro usuário.`);
-      }
-
-      // Prepare clean update data - remove undefined values and system fields
-      const { 
-        created_at, 
-        updated_at, 
-        has_complements, 
-        id: updateId,
-        ...cleanUpdates 
-      } = updates as any;
-
-      // Clean up complement_groups structure if present
-      if (cleanUpdates.complement_groups) {
-        // Ensure complement_groups is properly structured for database
-        cleanUpdates.complement_groups = Array.isArray(cleanUpdates.complement_groups) 
-          ? cleanUpdates.complement_groups 
-          : null;
-      }
-
-      // Remove undefined values and add updated_at
-      const safeUpdate = Object.fromEntries(
-        Object.entries({
-          ...cleanUpdates,
-          updated_at: new Date().toISOString()
-        }).filter(([, value]) => value !== undefined)
-      );
-
-      console.log('📝 Dados para atualização:', {
-        id,
-        safeUpdate,
-        originalUpdates: updates,
-        supabaseUrl: supabaseUrl.substring(0, 30) + '...'
-      });
-
-      // Perform the update with better error handling
       const { data, error } = await supabase
         .from('delivery_products')
-        .update(safeUpdate)
+        .update({
+          ...updates,
+          updated_at: new Date().toISOString()
+        })
         .eq('id', id)
         .select('*')
         .maybeSingle();
 
       if (error) {
-        console.error('❌ Erro ao atualizar produto:', error);
-        console.error('❌ Detalhes do erro:', {
-          code: error.code,
-          message: error.message,
-          details: error.details,
-          hint: error.hint
-        });
-        
-        // Handle specific error cases
-        if (error.code === 'PGRST116') {
-          throw new Error('Produto não encontrado. Ele pode ter sido excluído por outro usuário.');
-        } else if (error.code === '23505') {
-          throw new Error('Já existe um produto com este código ou nome. Use valores únicos.');
-        } else if (error.code === '42501') {
-          throw new Error('Sem permissão para atualizar este produto. Verifique as políticas de segurança.');
-        } else {
-          throw new Error(`Erro ao atualizar produto: ${error.message || 'Erro desconhecido'}`);
-        }
+        throw new Error(`Erro ao atualizar produto: ${error.message}`);
       }
 
-      if (!data || !data.id) {
-        console.error('❌ Atualização não retornou dados válidos');
-        throw new Error('Erro na atualização - dados não retornados pelo banco.');
-      }
-
-      console.log('✅ Produto atualizado no banco:', data);
-
-      // Update local state
-      setProducts(prev => prev.map(p => p.id === id ? data : p));
-      
-      console.log('✅ Estado local atualizado');
-      return data;
+      // Refresh products list after update
+      await fetchProducts();
 
     } catch (err) {
-      console.error('❌ Erro ao atualizar produto:', err);
       throw err;
     }
   }, []);
 
-  const validateProductExists = useCallback(async (id: string): Promise<boolean> => {
-    try {
-      // Verificar se é um ID temporário
-      if (id.startsWith('temp-') || id.startsWith('demo-')) {
-        return false;
-      }
-
-      const { error } = await supabase
-        .from('delivery_products')
-        .update({})
-        .eq('id', id);
-
-      if (error) {
-        console.error('Erro ao validar produto:', error);
-        return false;
-      }
-      
-      return true;
-    } catch (err) {
-      console.error('Erro ao validar produto:', err);
-      return false;
-    }
-  }, []);
-  const syncWithDatabase = useCallback(async () => {
-    console.log('🔄 Sincronizando produtos com banco de dados...');
-    await fetchProducts();
-  }, [fetchProducts]);
-
   const deleteProduct = useCallback(async (id: string) => {
     try {
-      console.log('🗑️ Excluindo produto:', id);
-      
       const { error } = await supabase
         .from('delivery_products')
         .delete()
@@ -280,9 +167,7 @@ export const useDeliveryProducts = () => {
       if (error) throw error;
       
       setProducts(prev => prev.filter(p => p.id !== id));
-      console.log('✅ Produto excluído');
     } catch (err) {
-      console.error('❌ Erro ao excluir produto:', err);
       throw new Error(err instanceof Error ? err.message : 'Erro ao excluir produto');
     }
   }, []);

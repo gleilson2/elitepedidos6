@@ -41,8 +41,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout }) => {
                 <ShoppingBag size={24} className="text-purple-600" />
               </div>
               <div>
-              <h1 className="text-2xl font-bold text-gray-800">Administrativo</h1>
-              <p className="text-gray-600">Elite Açaí - Gestão Completa</p>
+                <h1 className="text-2xl font-bold text-gray-800">Administrativo</h1>
+                <p className="text-gray-600">Elite Açaí - Gestão Completa</p>
               </div>
             </div>
             <button
