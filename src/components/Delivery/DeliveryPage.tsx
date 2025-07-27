@@ -8,12 +8,13 @@ import Cart from './Cart';
 import AcaiChatbot from '../Chatbot/AcaiChatbot';
 import IARecommender from './IARecommender';
 import StoreStatusBanner from './StoreStatusBanner';
-import { products, categoryNames } from '../../data/products';
+import { categoryNames } from '../../data/products';
 import { Product } from '../../types/product';
 import { useCart } from '../../hooks/useCart';
 import { useStoreHours } from '../../hooks/useStoreHours';
 import { useProductScheduling } from '../../hooks/useProductScheduling';
 import { useRecommendations } from '../../hooks/useRecommendations';
+import { useDeliveryProducts } from '../../hooks/useDeliveryProducts';
 import { 
   getPromotionsOfTheDay, 
   hasTodaySpecialPromotions, 
@@ -49,6 +50,7 @@ const DeliveryPage: React.FC = () => {
   const { getStoreStatus } = useStoreHours();
   const productScheduling = useProductScheduling();
   const { getRecommendations } = useRecommendations();
+  const { products: deliveryProducts, loading: productsLoading } = useDeliveryProducts();
   
   // Configurar hook para funções de availability
   React.useEffect(() => {
@@ -63,8 +65,56 @@ const DeliveryPage: React.FC = () => {
     }
   }, []);
   
+  // Converter produtos do banco para o formato esperado pelo componente
+  const products = React.useMemo(() => {
+    return deliveryProducts.map(dbProduct => ({
+      id: dbProduct.id,
+      name: dbProduct.name,
+      category: dbProduct.category as Product['category'],
+      price: dbProduct.price,
+      originalPrice: dbProduct.original_price,
+      pricePerGram: dbProduct.price_per_gram,
+      description: dbProduct.description,
+      image: dbProduct.image_url || 'https://images.pexels.com/photos/1092730/pexels-photo-1092730.jpeg?auto=compress&cs=tinysrgb&w=400',
+      isActive: dbProduct.is_active,
+      is_weighable: dbProduct.is_weighable,
+      complementGroups: Array.isArray(dbProduct.complement_groups) 
+        ? dbProduct.complement_groups.map(group => ({
+            id: group.id || `group-${Math.random()}`,
+            name: group.name || 'Grupo sem nome',
+            required: group.required || false,
+            minItems: group.min_items || 0,
+            maxItems: group.max_items || 1,
+            complements: Array.isArray(group.complements) ? group.complements.map(comp => ({
+              id: comp.id || `comp-${Math.random()}`,
+              name: comp.name || 'Complemento',
+              price: comp.price || 0,
+              description: comp.description || ''
+            })) : (Array.isArray(group.options) ? group.options.map(opt => ({
+              id: opt.id || `opt-${Math.random()}`,
+              name: opt.name || 'Opção',
+              price: opt.price || 0,
+              description: opt.description || ''
+            })) : [])
+          }))
+        : [],
+      sizes: dbProduct.sizes,
+      scheduledDays: dbProduct.scheduled_days,
+      availability: dbProduct.availability_type ? {
+        type: dbProduct.availability_type as any,
+        scheduledDays: dbProduct.scheduled_days
+      } : undefined
+    }));
+  }, [deliveryProducts]);
+  
   // Filtrar apenas produtos ativos
-  const activeProducts = products.filter(product => product.isActive !== false);
+  const activeProducts = products.filter(product => {
+    const isActive = product.isActive !== false;
+    if (!isActive) {
+      console.log(`🚫 Produto ${product.name} filtrado (inativo)`);
+    }
+    return isActive;
+  });
   
   // Verificar se hoje tem promoções especiais
   const hasSpecialToday = hasTodaySpecialPromotions(activeProducts);
@@ -148,6 +198,17 @@ const DeliveryPage: React.FC = () => {
 
   // Verificar se a loja está aberta
   const storeStatus = getStoreStatus();
+
+  if (productsLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Carregando produtos...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">

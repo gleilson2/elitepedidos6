@@ -1,3 +1,8 @@
+// IMPORTANTE: Os produtos agora são gerenciados pelo banco de dados
+// Este arquivo mantém a estrutura para compatibilidade, mas os dados
+// administrativos devem ser gerenciados através do painel /administrativo
+// que agora salva no banco de dados via tabela delivery_products
+
 export const categoryNames = {
   acai: 'Açaí',
   combo: 'Combos',
@@ -6,9 +11,10 @@ export const categoryNames = {
   sorvetes: 'Sorvetes' 
 };
 
-// IMPORTANTE: Esta é a fonte de dados dos produtos
-// As alterações feitas pelo painel administrativo são temporárias (apenas na sessão)
-// Para persistir as alterações, seria necessário implementar um backend/banco de dados
+// NOTA: Os produtos do delivery agora são gerenciados pelo banco de dados
+// através da tabela delivery_products. Este arquivo mantém os produtos
+// para compatibilidade com o sistema atual, mas o painel administrativo
+// agora salva diretamente no banco.
 
 // Grupos de complementos padrão que serão usados em todos os produtos
 const standardComplementGroups = [
@@ -51,8 +57,6 @@ const standardComplementGroups = [
       { id: 'creme-maracuja', name: 'CREME DE MARACUJÁ', price: 0, description: 'Creme azedinho de maracujá' },
       { id: 'creme-pacoca', name: 'CREME DE PAÇOCA', price: 0, description: 'Creme de paçoca' },
       { id: 'creme-ovomaltine', name: 'CREME DE OVOMALTINE', price: 0, description: 'Creme de ovomaltine' },
-      { id: 'creme-coco', name: 'CREME DE COCO', price: 0, description: 'Creme de coco' },
-      { id: 'creme-morangotela', name: 'CREME MORANGOTELA', price: 0, description: 'Morango+Nutela' },
       { id: 'creme-pistache', name: 'CREME DE PISTACHE', price: 0, description: 'Creme de pistache' }
     ]
   },
@@ -218,8 +222,6 @@ const complementsFor1Creme2Mix = [
       { id: 'creme-maracuja', name: 'CREME DE MARACUJÁ', price: 0, description: 'Creme azedinho de maracujá' },
       { id: 'creme-pacoca', name: 'CREME DE PAÇOCA', price: 0, description: 'Creme de paçoca' },
       { id: 'creme-ovomaltine', name: 'CREME DE OVOMALTINE', price: 0, description: 'Creme de ovomaltine' },
-      { id: 'creme-coco', name: 'CREME DE COCO', price: 0, description: 'Creme de coco' },
-      { id: 'creme-morangotela', name: 'CREME MORANGOTELA', price: 0, description: 'Morango+Nutela' },
       { id: 'creme-pistache', name: 'CREME DE PISTACHE', price: 0, description: 'Creme de pistache' }
     ]
   },
@@ -310,8 +312,6 @@ const complementsFor5Mix = [
       { id: 'creme-maracuja', name: 'CREME DE MARACUJÁ', price: 0, description: 'Creme azedinho de maracujá' },
       { id: 'creme-pacoca', name: 'CREME DE PAÇOCA', price: 0, description: 'Creme de paçoca' },
       { id: 'creme-ovomaltine', name: 'CREME DE OVOMALTINE', price: 0, description: 'Creme de ovomaltine' },
-      { id: 'creme-coco', name: 'CREME DE COCO', price: 0, description: 'Creme de coco' },
-      { id: 'creme-morangotela', name: 'CREME MORANGOTELA', price: 0, description: 'Morango+Nutela' },
       { id: 'creme-pistache', name: 'CREME DE PISTACHE', price: 0, description: 'Creme de pistache' }
     ]
   },

@@ -32,7 +32,7 @@ const PDVSettings: React.FC = () => {
   const [printerSettings, setPrinterSettings] = useState({
     paper_width: '80mm',
     page_size: 300,
-    font_size: 2,
+    font_size: 14,
     delivery_font_size: 14,
     scale: 1,
     margin_left: 0,
@@ -68,6 +68,18 @@ const PDVSettings: React.FC = () => {
       } catch (e) {
         console.error('Erro ao carregar configurações de impressora:', e);
       }
+    } else {
+      // Definir valores padrão se não houver configurações salvas
+      setPrinterSettings({
+        paper_width: '80mm',
+        page_size: 300,
+        font_size: 14,
+        delivery_font_size: 14,
+        scale: 1,
+        margin_left: 0,
+        margin_top: 1,
+        margin_bottom: 1
+      });
     }
   }, []);
 
@@ -333,7 +345,7 @@ const PDVSettings: React.FC = () => {
                   value={localSettings.cnpj || ''}
                   onChange={(e) => setLocalSettings(prev => ({ ...prev, cnpj: e.target.value }))}
                   className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="00.000.000/0001-00"
+                  placeholder="38.130.139/0001-22"
                 />
               </div>
 
@@ -346,7 +358,7 @@ const PDVSettings: React.FC = () => {
                   value={localSettings.address}
                   onChange={(e) => setLocalSettings(prev => ({ ...prev, address: e.target.value }))}
                   className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Endereço completo da loja"
+                  placeholder="Rua Dois, 2130-A – Residencial 1 – Cágado"
                 />
               </div>
 
@@ -706,15 +718,42 @@ const PDVSettings: React.FC = () => {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Tamanho da Fonte
+                  Tamanho da Página (mm)
                 </label>
                 <input
                   type="number"
-                  min="1"
-                  max="5"
-                  step="0.5"
+                  min="100"
+                  max="1000"
+                  value={printerSettings.page_size}
+                  onChange={(e) => setPrinterSettings(prev => ({ ...prev, page_size: parseInt(e.target.value) || 300 }))}
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Tamanho da Fonte (px)
+                </label>
+                <input
+                  type="number"
+                  min="8"
+                  max="24"
                   value={printerSettings.font_size}
-                  onChange={(e) => setPrinterSettings(prev => ({ ...prev, font_size: parseFloat(e.target.value) || 2 }))}
+                  onChange={(e) => setPrinterSettings(prev => ({ ...prev, font_size: parseInt(e.target.value) || 14 }))}
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Tamanho da Fonte Delivery (px)
+                </label>
+                <input
+                  type="number"
+                  min="8"
+                  max="24"
+                  value={printerSettings.delivery_font_size}
+                  onChange={(e) => setPrinterSettings(prev => ({ ...prev, delivery_font_size: parseInt(e.target.value) || 14 }))}
                   className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
                 />
               </div>
@@ -736,12 +775,12 @@ const PDVSettings: React.FC = () => {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Margem Esquerda (mm)
+                  Margem Lateral (px)
                 </label>
                 <input
                   type="number"
                   min="0"
-                  max="20"
+                  max="50"
                   value={printerSettings.margin_left}
                   onChange={(e) => setPrinterSettings(prev => ({ ...prev, margin_left: parseInt(e.target.value) || 0 }))}
                   className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
@@ -750,12 +789,12 @@ const PDVSettings: React.FC = () => {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Margem Superior (mm)
+                  Margem Superior (px)
                 </label>
                 <input
                   type="number"
                   min="0"
-                  max="20"
+                  max="50"
                   value={printerSettings.margin_top}
                   onChange={(e) => setPrinterSettings(prev => ({ ...prev, margin_top: parseInt(e.target.value) || 0 }))}
                   className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
@@ -764,16 +803,33 @@ const PDVSettings: React.FC = () => {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Margem Inferior (mm)
+                  Margem Inferior (px)
                 </label>
                 <input
                   type="number"
                   min="0"
-                  max="20"
+                  max="50"
                   value={printerSettings.margin_bottom}
                   onChange={(e) => setPrinterSettings(prev => ({ ...prev, margin_bottom: parseInt(e.target.value) || 0 }))}
                   className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
                 />
+              </div>
+
+              <div>
+                <label className="flex items-center gap-2 mb-1">
+                  <input
+                    type="checkbox"
+                    checked={printerSettings.auto_print_delivery || false}
+                    onChange={(e) => setPrinterSettings(prev => ({ ...prev, auto_print_delivery: e.target.checked }))}
+                    className="w-4 h-4 text-purple-600"
+                  />
+                  <span className="text-sm font-medium text-gray-700">
+                    Imprimir pedidos de delivery automaticamente
+                  </span>
+                </label>
+                <p className="text-xs text-gray-500 ml-6">
+                  Imprime automaticamente quando novos pedidos chegarem
+                </p>
               </div>
             </div>
 
