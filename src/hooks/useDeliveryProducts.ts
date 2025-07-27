@@ -92,6 +92,12 @@ export const useDeliveryProducts = () => {
     try {
       console.log('🚀 Criando produto:', product);
       
+      // Verificar se Supabase está configurado
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      if (!supabaseUrl || supabaseUrl.includes('placeholder')) {
+        throw new Error('Supabase não configurado. Configure as variáveis de ambiente para usar esta funcionalidade.');
+      }
+      
       const { data, error } = await supabase
         .from('delivery_products')
         .insert([{
@@ -104,15 +110,18 @@ export const useDeliveryProducts = () => {
 
       if (error) throw error;
       
-      // Check if data was returned from the insert operation
-      if (!data) {
-        return null;
+      // Verificar se o produto foi realmente criado
+      if (!data || !data.id) {
+        console.error('❌ Produto não foi criado - nenhum dado retornado');
+        throw new Error('Produto não foi criado no banco de dados. Tente novamente.');
       }
       
-      const newProduct = Array.isArray(data) ? data[0] : data;
-      setProducts(prev => [...prev, newProduct]);
-      console.log('✅ Produto criado:', data);
-      return newProduct;
+      console.log('✅ Produto criado no banco com ID:', data.id);
+      
+      // Atualizar estado local apenas após confirmação do banco
+      setProducts(prev => [...prev, data]);
+      
+      return data;
     } catch (err) {
       console.error('❌ Erro ao criar produto:', err);
       throw new Error(err instanceof Error ? err.message : 'Erro ao criar produto');
@@ -123,10 +132,32 @@ export const useDeliveryProducts = () => {
     try {
       console.log('✏️ Atualizando produto:', id, updates);
 
+      // Verificar se é um ID temporário
+      if (id.startsWith('temp-') || id.startsWith('demo-')) {
+        throw new Error('Não é possível atualizar um produto temporário. Crie o produto primeiro.');
+      }
+
       // Check if Supabase is configured
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
       if (!supabaseUrl || supabaseUrl.includes('placeholder')) {
         throw new Error('Supabase não configurado. Configure as variáveis de ambiente para usar esta funcionalidade.');
+      }
+
+      // Primeiro verificar se o produto existe
+      const { data: existingProduct, error: checkError } = await supabase
+        .from('delivery_products')
+        .select('id')
+        .eq('id', id)
+        .maybeSingle();
+
+      if (checkError) {
+        console.error('❌ Erro ao verificar existência do produto:', checkError);
+        throw new Error(`Erro ao verificar produto: ${checkError.message}`);
+      }
+
+      if (!existingProduct) {
+        console.warn(`⚠️ Produto ${id} não encontrado no banco de dados`);
+        throw new Error(`Produto não encontrado no banco de dados. Ele pode ter sido excluído por outro usuário.`);
       }
 
       // Prepare clean update data - remove undefined values and system fields
@@ -167,7 +198,7 @@ export const useDeliveryProducts = () => {
         .update(safeUpdate)
         .eq('id', id)
         .select('*')
-        .maybeSingle();
+        .single();
 
       if (error) {
         console.error('❌ Erro ao atualizar produto:', error);
@@ -186,24 +217,13 @@ export const useDeliveryProducts = () => {
         } else if (error.code === '42501') {
           throw new Error('Sem permissão para atualizar este produto. Verifique as políticas de segurança.');
         } else {
-          // Handle specific error cases
-          if (error.code === 'PGRST116') {
-            // Product not found - this is a user error, not a system error
-            console.warn(`⚠️ Produto ${id} não encontrado no banco de dados`);
-            throw new Error(`Produto não encontrado. Ele pode ter sido excluído por outro usuário.`);
-          } else if (error.code === '23505') {
-            throw new Error('Já existe um produto com este código ou nome. Use valores únicos.');
-          } else if (error.code === '42501') {
-            throw new Error('Sem permissão para atualizar este produto.');
-          } else {
-            throw new Error(`Erro ao atualizar produto: ${error.message || 'Erro desconhecido'}`);
-          }
+          throw new Error(`Erro ao atualizar produto: ${error.message || 'Erro desconhecido'}`);
         }
       }
 
-      if (data === null) {
-        console.warn(`⚠️ Produto ${id} não encontrado no banco de dados`);
-        throw new Error(`Produto não encontrado. Ele pode ter sido excluído por outro usuário.`);
+      if (!data || !data.id) {
+        console.error('❌ Atualização não retornou dados válidos');
+        throw new Error('Erro na atualização - dados não retornados pelo banco.');
       }
 
       console.log('✅ Produto atualizado no banco:', data);
@@ -217,6 +237,31 @@ export const useDeliveryProducts = () => {
     } catch (err) {
       console.error('❌ Erro ao atualizar produto:', err);
       throw err;
+    }
+  }, []);
+
+  const validateProductExists = useCallback(async (id: string): Promise<boolean> => {
+    try {
+      // Verificar se é um ID temporário
+      if (id.startsWith('temp-') || id.startsWith('demo-')) {
+        return false;
+      }
+
+      const { data, error } = await supabase
+        .from('delivery_products')
+        .select('id')
+        .eq('id', id)
+        .maybeSingle();
+
+      if (error) {
+        console.error('Erro ao validar existência do produto:', error);
+        return false;
+      }
+
+      return !!data;
+    } catch (err) {
+      console.error('Erro ao validar produto:', err);
+      return false;
     }
   }, []);
 
@@ -335,6 +380,7 @@ export const useDeliveryProducts = () => {
     createProduct,
     updateProduct,
     deleteProduct,
+    validateProductExists,
     refetch: fetchProducts
   };
 };
