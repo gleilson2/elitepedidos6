@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react';
-import { Plus, Edit2, Trash2, Save, X, Upload, Image as ImageIcon } from 'lucide-react';
-import { useDeliveryProducts, type DeliveryProduct } from '../../hooks/useDeliveryProducts';
-import { useImageUpload } from '../../hooks/useImageUpload';
+import { useState, useEffect, useCallback } from 'react';
+import { supabase } from '../lib/supabase';
+import type { RealtimeChannel } from '@supabase/supabase-js';
 
-interface ProductFormData {
+export interface DeliveryProduct {
+  id: string;
   name: string;
-  category: DeliveryProduct['category'];
+  category: 'acai' | 'combo' | 'milkshake' | 'vitamina' | 'sorvetes' | 'bebidas' | 'complementos' | 'sobremesas' | 'outros';
   price: number;
   original_price?: number;
   description: string;
@@ -13,478 +13,384 @@ interface ProductFormData {
   is_active: boolean;
   is_weighable: boolean;
   price_per_gram?: number;
+  complement_groups?: any;
+  sizes?: any;
+  scheduled_days?: any;
+  availability_type?: string;
+  created_at: string;
+  updated_at: string;
 }
 
-const CATEGORIES = [
-  { value: 'acai', label: 'Açaí' },
-  { value: 'combo', label: 'Combo' },
-  { value: 'milkshake', label: 'Milkshake' },
-  { value: 'vitamina', label: 'Vitamina' },
-  { value: 'sorvetes', label: 'Sorvetes' },
-  { value: 'bebidas', label: 'Bebidas' },
-  { value: 'complementos', label: 'Complementos' },
-  { value: 'sobremesas', label: 'Sobremesas' },
-  { value: 'outros', label: 'Outros' }
-] as const;
+export const useDeliveryProducts = () => {
+  const [products, setProducts] = useState<DeliveryProduct[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-export default function ProductsPanel() {
-  const { 
-    products, 
-    loading, 
-    error, 
-    createProduct, 
-    updateProduct, 
-    deleteProduct,
-    validateProductExists 
-  } = useDeliveryProducts();
-  
-  const { getProductImage, saveImageToProduct } = useImageUpload();
+  const fetchProducts = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      // Check if Supabase is properly configured
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+      
+      if (!supabaseUrl || !supabaseKey || 
+          supabaseUrl === 'your_supabase_url_here' || 
+          supabaseKey === 'your_supabase_anon_key_here' ||
+          supabaseUrl.includes('placeholder')) {
+        console.warn('⚠️ Supabase não configurado - usando produtos de demonstração');
+        
+        // Fallback para produtos de demonstração se Supabase não estiver configurado
+        const { products: demoProducts } = await import('../data/products');
+        const mappedProducts = demoProducts.map(product => ({
+          id: product.id,
+          name: product.name,
+          category: product.category as DeliveryProduct['category'],
+          price: product.price,
+          original_price: product.originalPrice,
+          description: product.description,
+          image_url: product.image,
+          is_active: product.isActive !== false,
+          is_weighable: product.is_weighable || false,
+          price_per_gram: product.pricePerGram,
+          complement_groups: product.complementGroups,
+          sizes: product.sizes,
+          scheduled_days: product.scheduledDays,
+          availability_type: product.availability?.type || 'always',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }));
+        
+        setProducts(mappedProducts);
+        setLoading(false);
+        return;
+      }
+      
+      console.log('🔄 Carregando produtos do banco de dados...');
+      
+      const { data, error } = await supabase
+        .from('delivery_products')
+        .select('*')
+        .order('name');
 
-  const [editingProduct, setEditingProduct] = useState<DeliveryProduct | null>(null);
-  const [showForm, setShowForm] = useState(false);
-  const [formData, setFormData] = useState<ProductFormData>({
-    name: '',
-    category: 'acai',
-    price: 0,
-    description: '',
-    is_active: true,
-    is_weighable: false
-  });
-  const [saving, setSaving] = useState(false);
-  const [selectedImage, setSelectedImage] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
+      if (error) throw error;
+      
+      console.log(`✅ ${data?.length || 0} produtos carregados do banco`);
+      setProducts(data || []);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Erro ao carregar produtos';
+      console.error('❌ Erro ao carregar produtos:', errorMessage);
+      setError(errorMessage);
+      setProducts([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const createProduct = useCallback(async (product: Omit<DeliveryProduct, 'id' | 'created_at' | 'updated_at'>) => {
+    try {
+      console.log('🚀 Criando produto:', product);
+      
+      // Verificar se Supabase está configurado
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      if (!supabaseUrl || supabaseUrl.includes('placeholder')) {
+        throw new Error('Supabase não configurado. Configure as variáveis de ambiente para usar esta funcionalidade.');
+      }
+      
+      const { data, error } = await supabase
+        .from('delivery_products')
+        .insert([{
+          ...product,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }])
+        .select()
+        .single();
+
+      if (error) throw error;
+      
+      // Verificar se o produto foi realmente criado
+      if (!data || !data.id) {
+        console.error('❌ Produto não foi criado - nenhum dado retornado');
+        throw new Error('Produto não foi criado no banco de dados. Tente novamente.');
+      }
+      
+      console.log('✅ Produto criado no banco com ID:', data.id);
+      
+      // Atualizar estado local apenas após confirmação do banco
+      setProducts(prev => [...prev, data]);
+      
+      return data;
+    } catch (err) {
+      console.error('❌ Erro ao criar produto:', err);
+      throw new Error(err instanceof Error ? err.message : 'Erro ao criar produto');
+    }
+  }, []);
+
+  const updateProduct = useCallback(async (id: string, updates: Partial<DeliveryProduct>) => {
+    try {
+      console.log('✏️ Atualizando produto:', id, updates);
+
+      // Verificar se é um ID temporário
+      if (id.startsWith('temp-') || id.startsWith('demo-')) {
+        throw new Error('Não é possível atualizar um produto temporário. Crie o produto primeiro.');
+      }
+
+      // Check if Supabase is configured
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      if (!supabaseUrl || supabaseUrl.includes('placeholder')) {
+        throw new Error('Supabase não configurado. Configure as variáveis de ambiente para usar esta funcionalidade.');
+      }
+
+      // Primeiro verificar se o produto existe
+      const { data: existingProduct, error: checkError } = await supabase
+        .from('delivery_products')
+        .select('id')
+        .eq('id', id)
+        .maybeSingle();
+
+      if (checkError) {
+        console.error('❌ Erro ao verificar existência do produto:', checkError);
+        throw new Error(`Erro ao verificar produto: ${checkError.message}`);
+      }
+
+      if (!existingProduct) {
+        console.warn(`⚠️ Produto ${id} não encontrado no banco de dados`);
+        throw new Error(`Produto não encontrado no banco de dados. Ele pode ter sido excluído por outro usuário.`);
+      }
+
+      // Prepare clean update data - remove undefined values and system fields
+      const { 
+        created_at, 
+        updated_at, 
+        has_complements, 
+        id: updateId,
+        ...cleanUpdates 
+      } = updates as any;
+
+      // Clean up complement_groups structure if present
+      if (cleanUpdates.complement_groups) {
+        // Ensure complement_groups is properly structured for database
+        cleanUpdates.complement_groups = Array.isArray(cleanUpdates.complement_groups) 
+          ? cleanUpdates.complement_groups 
+          : null;
+      }
+
+      // Remove undefined values and add updated_at
+      const safeUpdate = Object.fromEntries(
+        Object.entries({
+          ...cleanUpdates,
+          updated_at: new Date().toISOString()
+        }).filter(([, value]) => value !== undefined)
+      );
+
+      console.log('📝 Dados para atualização:', {
+        id,
+        safeUpdate,
+        originalUpdates: updates,
+        supabaseUrl: supabaseUrl.substring(0, 30) + '...'
+      });
+
+      // Perform the update with better error handling
+      const { data, error } = await supabase
+        .from('delivery_products')
+        .update(safeUpdate)
+        .eq('id', id)
+        .select('*')
+        .maybeSingle();
+
+      if (error) {
+        console.error('❌ Erro ao atualizar produto:', error);
+        console.error('❌ Detalhes do erro:', {
+          code: error.code,
+          message: error.message,
+          details: error.details,
+          hint: error.hint
+        });
+        
+        // Handle specific error cases
+        if (error.code === 'PGRST116') {
+          throw new Error(`Produto com ID ${id} não encontrado para atualização.`);
+        } else if (error.code === '23505') {
+          throw new Error('Já existe um produto com este código ou nome. Use valores únicos.');
+        } else if (error.code === '42501') {
+          throw new Error('Sem permissão para atualizar este produto. Verifique as políticas de segurança.');
+        } else {
+          // Handle specific error cases
+          if (error.code === 'PGRST116') {
+            // Product not found - this is a user error, not a system error
+            console.warn(`⚠️ Produto ${id} não encontrado no banco de dados`);
+            throw new Error(`Produto não encontrado. Ele pode ter sido excluído por outro usuário.`);
+          } else if (error.code === '23505') {
+            throw new Error('Já existe um produto com este código ou nome. Use valores únicos.');
+          } else if (error.code === '42501') {
+            throw new Error('Sem permissão para atualizar este produto.');
+          } else {
+            throw new Error(`Erro ao atualizar produto: ${error.message || 'Erro desconhecido'}`);
+          }
+        }
+      }
+
+      if (!data || !data.id) {
+        console.error('❌ Atualização não retornou dados válidos');
+        throw new Error('Erro na atualização - dados não retornados pelo banco.');
+      }
+
+      console.log('✅ Produto atualizado no banco:', data);
+
+      // Update local state
+      setProducts(prev => prev.map(p => p.id === id ? data : p));
+      
+      console.log('✅ Estado local atualizado');
+      return data;
+
+    } catch (err) {
+      console.error('❌ Erro ao atualizar produto:', err);
+      throw err;
+    }
+  }, []);
+
+  const validateProductExists = useCallback(async (id: string): Promise<boolean> => {
+    try {
+      // Verificar se é um ID temporário
+      if (id.startsWith('temp-') || id.startsWith('demo-')) {
+        return false;
+      }
+
+      const { data, error } = await supabase
+        .from('delivery_products')
+        .select('id')
+        .eq('id', id)
+        .maybeSingle();
+
+      if (error) {
+        console.error('Erro ao validar existência do produto:', error);
+        return false;
+      }
+
+      return !!data;
+    } catch (err) {
+      console.error('Erro ao validar produto:', err);
+      return false;
+    }
+  }, []);
+  const syncWithDatabase = useCallback(async () => {
+    console.log('🔄 Sincronizando produtos com banco de dados...');
+    await fetchProducts();
+  }, [fetchProducts]);
+
+  const deleteProduct = useCallback(async (id: string) => {
+    try {
+      console.log('🗑️ Excluindo produto:', id);
+      
+      const { error } = await supabase
+        .from('delivery_products')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+      
+      setProducts(prev => prev.filter(p => p.id !== id));
+      console.log('✅ Produto excluído');
+    } catch (err) {
+      console.error('❌ Erro ao excluir produto:', err);
+      throw new Error(err instanceof Error ? err.message : 'Erro ao excluir produto');
+    }
+  }, []);
+
+  // Configurar subscription em tempo real
+  useEffect(() => {
+    let channel: RealtimeChannel | null = null;
+
+    // Verificar se Supabase está configurado
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+    
+    if (!supabaseUrl || !supabaseKey || 
+        supabaseUrl === 'your_supabase_url_here' || 
+        supabaseKey === 'your_supabase_anon_key_here' ||
+        supabaseUrl.includes('placeholder')) {
+      console.log('⚠️ Supabase não configurado - subscription em tempo real desabilitada');
+    } else {
+      console.log('🔄 Configurando subscription em tempo real para produtos...');
+      
+      channel = supabase
+        .channel('delivery_products_changes')
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'delivery_products'
+          },
+          (payload) => {
+            console.log('📡 Mudança detectada na tabela delivery_products:', payload);
+            
+            switch (payload.eventType) {
+              case 'INSERT':
+                if (payload.new) {
+                  console.log('➕ Produto adicionado:', payload.new);
+                  setProducts(prev => {
+                    // Verificar se o produto já existe para evitar duplicatas
+                    const exists = prev.some(p => p.id === payload.new.id);
+                    if (exists) return prev;
+                    return [...prev, payload.new as DeliveryProduct];
+                  });
+                }
+                break;
+                
+              case 'UPDATE':
+                if (payload.new) {
+                  console.log('✏️ Produto atualizado:', payload.new);
+                  setProducts(prev => 
+                    prev.map(p => 
+                      p.id === payload.new.id ? payload.new as DeliveryProduct : p
+                    )
+                  );
+                }
+                break;
+                
+              case 'DELETE':
+                if (payload.old) {
+                  console.log('🗑️ Produto removido:', payload.old);
+                  setProducts(prev => 
+                    prev.filter(p => p.id !== payload.old.id)
+                  );
+                }
+                break;
+            }
+          }
+        )
+        .subscribe((status) => {
+          console.log('📡 Status da subscription:', status);
+          if (status === 'SUBSCRIBED') {
+            console.log('✅ Subscription em tempo real ativa para produtos');
+          }
+        });
+    }
+
+    // Cleanup function
+    return () => {
+      if (channel) {
+        console.log('🔌 Desconectando subscription em tempo real...');
+        channel.unsubscribe();
+      }
+    };
+  }, []);
 
   useEffect(() => {
-    if (editingProduct) {
-      setFormData({
-        name: editingProduct.name,
-        category: editingProduct.category,
-        price: editingProduct.price,
-        original_price: editingProduct.original_price,
-        description: editingProduct.description,
-        image_url: editingProduct.image_url,
-        is_active: editingProduct.is_active,
-        is_weighable: editingProduct.is_weighable,
-        price_per_gram: editingProduct.price_per_gram
-      });
-      
-      if (editingProduct.image_url) {
-        setImagePreview(editingProduct.image_url);
-      }
-    }
-  }, [editingProduct]);
+    fetchProducts();
+  }, [fetchProducts]);
 
-  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setSelectedImage(file);
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        setImagePreview(e.target?.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
+  return {
+    products,
+    loading,
+    error,
+    createProduct,
+    updateProduct,
+    deleteProduct,
+    validateProductExists,
+    refetch: fetchProducts
   };
-
-  const resetForm = () => {
-    setFormData({
-      name: '',
-      category: 'acai',
-      price: 0,
-      description: '',
-      is_active: true,
-      is_weighable: false
-    });
-    setEditingProduct(null);
-    setShowForm(false);
-    setSelectedImage(null);
-    setImagePreview(null);
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSaving(true);
-
-    try {
-      let imageUrl = formData.image_url;
-
-      // Upload image if selected
-      if (selectedImage) {
-        console.log('📤 Fazendo upload da imagem...');
-        const uploadedImageUrl = await saveImageToProduct(selectedImage);
-        imageUrl = uploadedImageUrl;
-        console.log('✅ Imagem enviada:', uploadedImageUrl);
-      }
-
-      const productData = {
-        ...formData,
-        image_url: imageUrl
-      };
-
-      if (editingProduct) {
-        // Validate product exists before updating
-        const exists = await validateProductExists(editingProduct.id);
-        if (!exists) {
-          throw new Error(`Produto com ID ${editingProduct.id} não foi encontrado no banco de dados. Ele pode ter sido excluído por outro usuário.`);
-        }
-
-        console.log('✏️ Atualizando produto existente...');
-        await updateProduct(editingProduct.id, productData);
-        console.log('✅ Produto atualizado com sucesso');
-      } else {
-        console.log('➕ Criando novo produto...');
-        const savedProduct = await createProduct(productData);
-        
-        if (!savedProduct?.id) {
-          throw new Error('Produto não foi criado corretamente no banco de dados');
-        }
-        
-        console.log('✅ Produto criado com sucesso:', savedProduct.id);
-      }
-
-      resetForm();
-    } catch (err) {
-      console.error('❌ Erro ao salvar produto:', err);
-      console.error('❌ Detalhes do erro:', err instanceof Error ? err.message : 'Erro desconhecido');
-      
-      // Show user-friendly error message
-      alert(`Erro ao salvar produto:\n\n${err instanceof Error ? err.message : 'Erro desconhecido'}`);
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleEdit = (product: DeliveryProduct) => {
-    setEditingProduct(product);
-    setShowForm(true);
-  };
-
-  const handleDelete = async (product: DeliveryProduct) => {
-    if (window.confirm(`Tem certeza que deseja excluir o produto "${product.name}"?`)) {
-      try {
-        await deleteProduct(product.id);
-        console.log('✅ Produto excluído com sucesso');
-      } catch (err) {
-        console.error('❌ Erro ao excluir produto:', err);
-        alert(`Erro ao excluir produto: ${err instanceof Error ? err.message : 'Erro desconhecido'}`);
-      }
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center p-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-        <span className="ml-2">Carregando produtos...</span>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-        <p className="text-red-800">Erro ao carregar produtos: {error}</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold text-gray-900">Produtos</h2>
-        <button
-          onClick={() => setShowForm(true)}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center gap-2"
-        >
-          <Plus className="w-4 h-4" />
-          Novo Produto
-        </button>
-      </div>
-
-      {showForm && (
-        <div className="bg-white border border-gray-200 rounded-lg p-6">
-          <h3 className="text-lg font-semibold mb-4">
-            {editingProduct ? 'Editar Produto' : 'Novo Produto'}
-          </h3>
-          
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Nome
-                </label>
-                <input
-                  type="text"
-                  value={formData.name}
-                  onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Categoria
-                </label>
-                <select
-                  value={formData.category}
-                  onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value as DeliveryProduct['category'] }))}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  {CATEGORIES.map(cat => (
-                    <option key={cat.value} value={cat.value}>
-                      {cat.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Preço (R$)
-                </label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={formData.price}
-                  onChange={(e) => setFormData(prev => ({ ...prev, price: parseFloat(e.target.value) || 0 }))}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Preço Original (R$)
-                </label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={formData.original_price || ''}
-                  onChange={(e) => setFormData(prev => ({ ...prev, original_price: parseFloat(e.target.value) || undefined }))}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Descrição
-              </label>
-              <textarea
-                value={formData.description}
-                onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                rows={3}
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Imagem do Produto
-              </label>
-              <div className="flex items-center gap-4">
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImageSelect}
-                  className="hidden"
-                  id="product-image"
-                />
-                <label
-                  htmlFor="product-image"
-                  className="bg-gray-100 border border-gray-300 rounded-lg px-4 py-2 cursor-pointer hover:bg-gray-200 flex items-center gap-2"
-                >
-                  <Upload className="w-4 h-4" />
-                  Selecionar Imagem
-                </label>
-                
-                {imagePreview && (
-                  <div className="relative">
-                    <img
-                      src={imagePreview}
-                      alt="Preview"
-                      className="w-16 h-16 object-cover rounded-lg border border-gray-300"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSelectedImage(null);
-                        setImagePreview(null);
-                        setFormData(prev => ({ ...prev, image_url: undefined }));
-                      }}
-                      className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-red-600"
-                    >
-                      ×
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div className="flex items-center gap-4">
-              <label className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={formData.is_weighable}
-                  onChange={(e) => setFormData(prev => ({ ...prev, is_weighable: e.target.checked }))}
-                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                />
-                <span className="text-sm text-gray-700">Produto pesável</span>
-              </label>
-
-              <label className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={formData.is_active}
-                  onChange={(e) => setFormData(prev => ({ ...prev, is_active: e.target.checked }))}
-                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                />
-                <span className="text-sm text-gray-700">Produto ativo</span>
-              </label>
-            </div>
-
-            {formData.is_weighable && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Preço por grama (R$)
-                </label>
-                <input
-                  type="number"
-                  step="0.0001"
-                  value={formData.price_per_gram || ''}
-                  onChange={(e) => setFormData(prev => ({ ...prev, price_per_gram: parseFloat(e.target.value) || undefined }))}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-            )}
-
-            <div className="flex gap-2 pt-4">
-              <button
-                type="submit"
-                disabled={saving}
-                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
-              >
-                <Save className="w-4 h-4" />
-                {saving ? 'Salvando...' : 'Salvar'}
-              </button>
-              
-              <button
-                type="button"
-                onClick={resetForm}
-                className="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 flex items-center gap-2"
-              >
-                <X className="w-4 h-4" />
-                Cancelar
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
-
-      <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Produto
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Categoria
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Preço
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Ações
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {products.map((product) => (
-                <tr key={product.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center">
-                      {product.image_url ? (
-                        <img
-                          src={getProductImage(product.image_url)}
-                          alt={product.name}
-                          className="w-10 h-10 rounded-lg object-cover mr-3"
-                        />
-                      ) : (
-                        <div className="w-10 h-10 bg-gray-200 rounded-lg flex items-center justify-center mr-3">
-                          <ImageIcon className="w-5 h-5 text-gray-400" />
-                        </div>
-                      )}
-                      <div>
-                        <div className="text-sm font-medium text-gray-900">
-                          {product.name}
-                        </div>
-                        <div className="text-sm text-gray-500">
-                          {product.description}
-                        </div>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                      {CATEGORIES.find(cat => cat.value === product.category)?.label || product.category}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    <div>
-                      R$ {product.price.toFixed(2)}
-                      {product.original_price && (
-                        <div className="text-xs text-gray-500 line-through">
-                          R$ {product.original_price.toFixed(2)}
-                        </div>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                      product.is_active 
-                        ? 'bg-green-100 text-green-800' 
-                        : 'bg-red-100 text-red-800'
-                    }`}>
-                      {product.is_active ? 'Ativo' : 'Inativo'}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => handleEdit(product)}
-                        className="text-blue-600 hover:text-blue-900 flex items-center gap-1"
-                      >
-                        <Edit2 className="w-4 h-4" />
-                        Editar
-                      </button>
-                      <button
-                        onClick={() => handleDelete(product)}
-                        className="text-red-600 hover:text-red-900 flex items-center gap-1"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                        Excluir
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {products.length === 0 && (
-        <div className="text-center py-8 text-gray-500">
-          Nenhum produto cadastrado
-        </div>
-      )}
-    </div>
-  );
-}
+};
