@@ -195,7 +195,7 @@ const DEFAULT_COMPLEMENT_GROUPS: ComplementGroup[] = [
 
 const ProductsPanel: React.FC = () => {
   const { products, loading, createProduct, updateProduct, deleteProduct } = useDeliveryProducts();
-  const { uploadImage, uploading, getProductImage } = useImageUpload();
+  const { uploadImage, uploading, getProductImage, saveImageToProduct } = useImageUpload();
   const [showModal, setShowModal] = useState(false);
   const [showImageModal, setShowImageModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState<ProductFormData | null>(null);
@@ -247,7 +247,6 @@ const ProductsPanel: React.FC = () => {
           }
         } catch (error) {
           errorCount++;
-          const cleanImageUrl = editingProduct.image_url.split('?')[0];
           console.warn(`⚠️ Erro ao carregar imagem do produto ${product.name} - continuando sem imagem`);
         }
       }
@@ -373,13 +372,26 @@ const ProductsPanel: React.FC = () => {
           throw new Error('ID do produto inválido para atualização. Tente recarregar a página.');
         }
         
+        await updateProduct(editingProduct.id, cleanFormData);
+        
+        // Salvar imagem se houver
+        if (editingProduct.image_url && !editingProduct.image_url.includes('pexels.com')) {
           const cleanImageUrl = editingProduct.image_url.split('?')[0];
-          await saveImageToProduct(cleanImageUrl, newProduct.id);
+          await saveImageToProduct(cleanImageUrl, editingProduct.id);
+        }
+        
         console.log('✅ Produto atualizado');
       } else {
         console.log('➕ Criando novo produto');
         
         const newProduct = await createProduct(cleanFormData);
+        
+        // Salvar imagem se houver
+        if (formData.image_url && !formData.image_url.includes('pexels.com')) {
+          const cleanImageUrl = formData.image_url.split('?')[0];
+          await saveImageToProduct(cleanImageUrl, newProduct.id);
+        }
+        
         console.log('✅ Produto criado:', newProduct);
       }
       
