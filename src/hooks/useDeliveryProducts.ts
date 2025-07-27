@@ -166,7 +166,8 @@ export const useDeliveryProducts = () => {
         .from('delivery_products')
         .update(safeUpdate)
         .eq('id', id)
-        .select('*');
+        .select('*')
+        .single();
 
       if (error) {
         console.error('❌ Erro ao atualizar produto:', error);
@@ -207,19 +208,18 @@ export const useDeliveryProducts = () => {
         }
       }
 
-      if (!data || data.length === 0) {
-        console.warn('⚠️ Nenhum dado retornado - produto pode não ter sido encontrado');
-        return null;
+      if (!data) {
+        console.error('❌ Nenhum dado retornado após atualização');
+        throw new Error('Falha ao atualizar produto - nenhum dado retornado do servidor');
       }
 
-      const updatedProduct = Array.isArray(data) ? data[0] : data;
-      console.log('✅ Produto atualizado no banco:', updatedProduct);
+      console.log('✅ Produto atualizado no banco:', data);
 
       // Update local state
-      setProducts(prev => prev.map(p => p.id === id ? updatedProduct : p));
+      setProducts(prev => prev.map(p => p.id === id ? data : p));
       
       console.log('✅ Estado local atualizado');
-      return updatedProduct;
+      return data;
 
     } catch (err) {
       console.error('❌ Erro ao atualizar produto:', err);
