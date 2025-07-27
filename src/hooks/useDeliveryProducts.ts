@@ -247,18 +247,17 @@ export const useDeliveryProducts = () => {
         return false;
       }
 
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('delivery_products')
-        .select('id')
-        .eq('id', id)
-        .maybeSingle();
+        .update({})
+        .eq('id', id);
 
       if (error) {
-        console.error('Erro ao validar existência do produto:', error);
+        console.error('Erro ao validar produto:', error);
         return false;
       }
-
-      return !!data;
+      
+      return true;
     } catch (err) {
       console.error('Erro ao validar produto:', err);
       return false;
