@@ -104,6 +104,11 @@ export const useDeliveryProducts = () => {
 
       if (error) throw error;
       
+      // Check if data was returned from the insert operation
+      if (!data) {
+        throw new Error('Resposta inesperada do servidor - nenhum dado retornado após criação');
+      }
+      
       setProducts(prev => [...prev, data]);
       console.log('✅ Produto criado:', data);
       return data;
