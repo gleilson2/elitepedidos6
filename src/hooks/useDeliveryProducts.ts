@@ -167,7 +167,7 @@ export const useDeliveryProducts = () => {
         .update(safeUpdate)
         .eq('id', id)
         .select('*')
-        .single();
+        .maybeSingle();
 
       if (error) {
         console.error('❌ Erro ao atualizar produto:', error);
@@ -201,9 +201,9 @@ export const useDeliveryProducts = () => {
         }
       }
 
-      if (!data) {
-        console.error('❌ Nenhum dado retornado após atualização');
-        throw new Error('Falha ao atualizar produto - nenhum dado retornado do servidor');
+      if (data === null) {
+        console.warn(`⚠️ Produto ${id} não encontrado no banco de dados`);
+        throw new Error(`Produto não encontrado. Ele pode ter sido excluído por outro usuário.`);
       }
 
       console.log('✅ Produto atualizado no banco:', data);
