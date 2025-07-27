@@ -350,10 +350,20 @@ const ProductsPanel: React.FC = () => {
     e.preventDefault();
     
     console.log('🚀 Iniciando salvamento do produto:', {
-      alert('Erro: ID do produto inválido. Tente recarregar a página e criar o produto novamente.');
-      setShowModal(false);
-      return;
-    }
+      editingProduct,
+      formData
+    });
+
+    try {
+      if (editingProduct) {
+        // Validar se o produto ainda existe no banco
+        const productExists = await validateProductExists(editingProduct.id!);
+        if (!productExists) {
+          console.error('❌ Produto não encontrado no banco de dados:', editingProduct.id);
+          alert('Erro: ID do produto inválido. Tente recarregar a página e criar o produto novamente.');
+          setShowModal(false);
+          return;
+        }
         await updateProduct(editingProduct.id!, formData);
       } else {
         const newProduct = await createProduct(formData);
