@@ -288,13 +288,20 @@ export const useImageUpload = () => {
       const cleanProductId = productId;
             
       try {
+        // Add timeout to prevent hanging requests
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
+        
         const { data, error } = await supabase
           .from('product_image_associations')
           .select(`
             image:product_images(public_url)
           `)
           .eq('product_id', cleanProductId)
-          .maybeSingle();
+          .maybeSingle()
+          .abortSignal(controller.signal);
+        
+        clearTimeout(timeoutId);
         
         if (error) {
           console.warn(`⚠️ Database error loading image for product ${cleanProductId}:`, error.message);
@@ -307,9 +314,11 @@ export const useImageUpload = () => {
         
         return data.image?.public_url || null;
       } catch (fetchError) {
-        // Handle network errors gracefully
+        // Handle network and timeout errors gracefully
         if (fetchError instanceof TypeError && fetchError.message.includes('Failed to fetch')) {
           console.warn(`🌐 Network error loading image for product ${cleanProductId} - using fallback`);
+        } else if (fetchError.name === 'AbortError') {
+          console.warn(`⏱️ Request timeout loading image for product ${cleanProductId} - using fallback`);
         } else {
           console.warn(`⚠️ Unexpected error loading image for product ${cleanProductId}:`, fetchError);
         }

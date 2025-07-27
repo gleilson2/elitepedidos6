@@ -237,9 +237,16 @@ const ProductsPanel: React.FC = () => {
       let successCount = 0;
       let errorCount = 0;
       
+      // Load images with timeout and error handling
       for (const product of products) {
         try {
-          const savedImage = await getProductImage(product.id);
+          // Add timeout for each image load
+          const imagePromise = getProductImage(product.id);
+          const timeoutPromise = new Promise<string | null>((_, reject) => {
+            setTimeout(() => reject(new Error('Image load timeout')), 3000);
+          });
+          
+          const savedImage = await Promise.race([imagePromise, timeoutPromise]);
           if (savedImage) {
             images[product.id] = savedImage;
             successCount++;
@@ -247,8 +254,12 @@ const ProductsPanel: React.FC = () => {
           }
         } catch (error) {
           errorCount++;
-          // Silently handle errors since getProductImage already logs them
-          console.warn(`⚠️ Erro ao carregar imagem do produto ${product.name} - continuando sem imagem`);
+          // Handle timeout and network errors gracefully
+          if (error instanceof Error && error.message === 'Image load timeout') {
+            console.warn(`⏱️ Timeout ao carregar imagem do produto ${product.name} - continuando sem imagem`);
+          } else {
+            console.warn(`⚠️ Erro ao carregar imagem do produto ${product.name} - continuando sem imagem`);
+          }
         }
       }
       

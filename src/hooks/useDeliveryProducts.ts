@@ -135,29 +135,19 @@ export const useDeliveryProducts = () => {
         throw new Error('Supabase não configurado. Configure as variáveis de ambiente para usar esta funcionalidade.');
       }
 
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('delivery_products')
         .update({
           ...updates,
           updated_at: new Date().toISOString()
         })
-        .eq('id', id)
-        .select('*')
-        .maybeSingle();
+        .eq('id', id);
 
       if (error) {
         throw new Error(`Erro ao atualizar produto: ${error.message}`);
       }
 
-      // Refresh products list after update
-      await fetchProducts();
-
-    } catch (err) {
-      throw err;
-    }
-  }, []);
-
-  const deleteProduct = useCallback(async (id: string) => {
+      console.log('✅ Produto atualizado com sucesso');
     try {
       const { error } = await supabase
         .from('delivery_products')
