@@ -5,6 +5,7 @@ import { useImageUpload } from '../../hooks/useImageUpload';
 import { useProductScheduling } from '../../hooks/useProductScheduling';
 import ImageUploadModal from './ImageUploadModal';
 import ProductScheduleModal from './ProductScheduleModal';
+import { supabase } from '../../lib/supabase';
 
 interface ComplementOption {
   name: string;
@@ -195,7 +196,7 @@ const DEFAULT_COMPLEMENT_GROUPS: ComplementGroup[] = [
 
 const ProductsPanel: React.FC = () => {
   const { products, loading, createProduct, updateProduct, deleteProduct } = useDeliveryProducts();
-  const { uploadImage, uploading, getProductImage } = useImageUpload();
+  const { uploadImage, uploading, getProductImage, saveImageToProduct } = useImageUpload();
   const [showModal, setShowModal] = useState(false);
   const [showImageModal, setShowImageModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState<ProductFormData | null>(null);
@@ -216,6 +217,32 @@ const ProductsPanel: React.FC = () => {
   const [selectedProductForSchedule, setSelectedProductForSchedule] = useState<any | null>(null);
   
   const { getProductSchedule, saveProductSchedule } = useProductScheduling();
+
+  // Função para validar se produto existe no banco
+  const validateProductExists = async (id: string): Promise<boolean> => {
+    try {
+      // Verificar se é um ID temporário
+      if (id.startsWith('temp-') || id.startsWith('demo-')) {
+        return false;
+      }
+
+      const { data, error } = await supabase
+        .from('delivery_products')
+        .select('id')
+        .eq('id', id)
+        .maybeSingle();
+
+      if (error) {
+        console.error('Erro ao validar existência do produto:', error);
+        return false;
+      }
+
+      return !!data;
+    } catch (err) {
+      console.error('Erro ao validar produto:', err);
+      return false;
+    }
+  };
 
   // Carregar imagens dos produtos
   useEffect(() => {
