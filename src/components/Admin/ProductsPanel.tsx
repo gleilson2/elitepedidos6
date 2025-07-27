@@ -361,10 +361,10 @@ const ProductsPanel: React.FC = () => {
 
       console.log('📝 Dados limpos para salvamento:', cleanFormData);
       console.log('💾 Iniciando salvamento do produto:', {
-        id: editingProduct.id,
-        name: editingProduct.name,
-        isCreating,
-        hasId: !!editingProduct.id
+        id: editingProduct?.id,
+        name: editingProduct?.name,
+        isCreating: !editingProduct,
+        hasId: !!editingProduct?.id
       });
 
       
@@ -373,11 +373,6 @@ const ProductsPanel: React.FC = () => {
         await updateProduct(editingProduct.id!, cleanFormData);
       } else {
         console.log('➕ Criando novo produto');
-        
-        // Verificar se o produto tem ID válido
-        if (!editingProduct.id) {
-          throw new Error('ID do produto não encontrado. Não é possível atualizar.');
-        }
         
         const newProduct = await createProduct(cleanFormData);
         console.log('✅ Produto criado:', newProduct);
@@ -500,11 +495,10 @@ const ProductsPanel: React.FC = () => {
       setTimeout(() => {
         if (document.body.contains(successMessage)) {
           document.body.removeChild(successMessage);
-        if (document.body.contains(successMessage)) {
-          document.body.removeChild(successMessage);
         }
       }, 3000);
       
+    } catch (error) {
       // Show detailed error message
       const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
       
@@ -533,6 +527,7 @@ const ProductsPanel: React.FC = () => {
       alert('Erro ao salvar programação. Tente novamente.');
     }
   };
+  
   const applyDefaultComplementGroups = () => {
     setFormData(prev => ({
       ...prev,
