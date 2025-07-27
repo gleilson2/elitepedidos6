@@ -172,52 +172,39 @@ export const useDeliveryProducts = () => {
         });
         
         // Handle specific error cases
-        if (error.code === '23505') {
+        if (error.code === 'PGRST116') {
+          // No rows updated - check if product exists and treat as no-op if it does
+          console.log('ℹ️ Nenhuma linha atualizada (PGRST116) - verificando se produto existe...');
+          
+          const { data: existingProduct, error: checkError } = await supabase
+            .from('delivery_products')
+            .select('*')
+            .eq('id', id)
+            .single();
+            
+          if (checkError || !existingProduct) {
+            throw new Error(`Produto com ID ${id} não foi encontrado no banco de dados.`);
+          } else {
+            // Product exists but no changes were made - this is a successful no-op
+            console.log('✅ Produto existe, nenhuma alteração detectada - operação bem-sucedida');
+            setProducts(prev => prev.map(p => p.id === id ? existingProduct : p));
+            return existingProduct;
+          }
+        } else if (error.code === '23505') {
           throw new Error('Já existe um produto com este código ou nome. Use valores únicos.');
         } else if (error.code === '42501') {
           throw new Error('Sem permissão para atualizar este produto. Verifique as políticas de segurança.');
         } else if (error.code === 'PGRST301') {
           throw new Error('Produto não encontrado ou sem permissão para atualizá-lo.');
-        } else if (error.code === 'PGRST116') {
-          throw new Error('Nenhuma linha foi encontrada para atualizar. O produto pode não existir.');
         } else {
           throw new Error(`Erro ao atualizar produto: ${error.message || 'Erro desconhecido'}`);
         }
       }
 
       if (!data || data.length === 0) {
-        console.error('❌ Nenhuma linha foi atualizada - produto não encontrado ou sem alterações');
-        console.error('❌ ID usado para atualização:', id);
-        console.error('❌ Dados enviados:', safeUpdate);
-        
-        // Check if product exists
-        const { data: existingProduct, error: checkError } = await supabase
-          .from('delivery_products')
-          .select('id, name')
-          .eq('id', id)
-          .single();
-          
-        if (checkError || !existingProduct) {
-          throw new Error(`Produto com ID ${id} não foi encontrado no banco de dados. O produto pode ter sido excluído.`);
-        } else {
-          // No changes were made - this is not an error, return the existing product
-          console.log('ℹ️ Nenhuma alteração detectada, retornando produto existente');
-          
-          // Get the full product data
-          const { data: fullProduct, error: fullError } = await supabase
-            .from('delivery_products')
-            .select('*')
-            .eq('id', id)
-            .single();
-            
-          if (fullError || !fullProduct) {
-            throw new Error(`Erro ao buscar dados completos do produto: ${fullError?.message || 'Produto não encontrado'}`);
-          }
-          
-          // Update local state with existing data
-          setProducts(prev => prev.map(p => p.id === id ? fullProduct : p));
-          return fullProduct;
-        }
+        // This should not happen if error handling above is correct
+        console.warn('⚠️ Nenhum dado retornado mas sem erro - situação inesperada');
+        throw new Error('Resposta inesperada do servidor - nenhum dado retornado');
       }
 
       const updatedProduct = data[0];
