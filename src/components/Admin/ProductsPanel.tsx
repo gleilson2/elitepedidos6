@@ -5,7 +5,6 @@ import { useImageUpload } from '../../hooks/useImageUpload';
 import { useProductScheduling } from '../../hooks/useProductScheduling';
 import ImageUploadModal from './ImageUploadModal';
 import ProductScheduleModal from './ProductScheduleModal';
-import { supabase } from '../../lib/supabase';
 
 interface ComplementOption {
   name: string;
@@ -218,32 +217,6 @@ const ProductsPanel: React.FC = () => {
   
   const { getProductSchedule, saveProductSchedule } = useProductScheduling();
 
-  // Função para validar se produto existe no banco
-  const validateProductExists = async (id: string): Promise<boolean> => {
-    try {
-      // Verificar se é um ID temporário
-      if (id.startsWith('temp-') || id.startsWith('demo-')) {
-        return false;
-      }
-
-      const { data, error } = await supabase
-        .from('delivery_products')
-        .select('id')
-        .eq('id', id)
-        .maybeSingle();
-
-      if (error) {
-        console.error('Erro ao validar existência do produto:', error);
-        return false;
-      }
-
-      return !!data;
-    } catch (err) {
-      console.error('Erro ao validar produto:', err);
-      return false;
-    }
-  };
-
   // Carregar imagens dos produtos
   useEffect(() => {
     const loadProductImages = async () => {
@@ -349,56 +322,34 @@ const ProductsPanel: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    console.log('🚀 Iniciando salvamento do produto:', {
-      editingProduct,
-      formData
-    });
+    if (!formData.name.trim() || !formData.description.trim()) {
+      alert('Nome e descrição são obrigatórios');
+      return;
+    }
 
     try {
       if (editingProduct) {
-        // Validar se o produto ainda existe no banco
-        const productExists = await validateProductExists(editingProduct.id!);
-        if (!productExists) {
-          console.error('❌ Produto não encontrado no banco de dados:', editingProduct.id);
-          alert('Erro: ID do produto inválido. Tente recarregar a página e criar o produto novamente.');
-          setShowModal(false);
-          return;
-        }
         await updateProduct(editingProduct.id!, formData);
       } else {
-        const newProduct = await createProduct(formData);
-        setEditingProduct(newProduct);
+        await createProduct(formData);
       }
       setShowModal(false);
       resetForm();
       
-      // Show success message
       alert(`Produto ${editingProduct ? 'atualizado' : 'criado'} com sucesso!`);
       
     } catch (error) {
       console.error('Erro ao salvar produto:', error);
-
-      // Mostrar erro detalhado
       const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
-      alert(`Erro ao salvar produto: ${errorMessage}\n\nDetalhes: ${JSON.stringify(error)}`);
-      
-      // Log completo do erro
-      console.error('Erro completo:', {
-        error,
-        formData,
-        editingProduct
-      });
+      alert(`Erro ao salvar produto: ${errorMessage}`);
     }
   };
 
   const handleImageUpload = async (file: File) => {
     try {
-      console.log('🚀 Iniciando upload de imagem...');
       const uploadedImage = await uploadImage(file);
-      console.log('✅ Upload concluído:', uploadedImage.url);
       setFormData(prev => ({ ...prev, image_url: uploadedImage.url }));
       
-      // Atualizar cache local de imagens
       if (editingProduct?.id) {
         setProductImages(prev => ({
           ...prev,
@@ -412,10 +363,8 @@ const ProductsPanel: React.FC = () => {
   };
 
   const handleImageSelect = (imageUrl: string) => {
-    console.log('🖼️ Imagem selecionada:', imageUrl.substring(0, 50) + '...');
     setFormData(prev => ({ ...prev, image_url: imageUrl }));
     
-    // Atualizar cache local de imagens
     if (editingProduct?.id) {
       setProductImages(prev => ({
         ...prev,
@@ -437,7 +386,6 @@ const ProductsPanel: React.FC = () => {
       setShowScheduleModal(false);
       setSelectedProductForSchedule(null);
       
-      // Show success message
       const successMessage = document.createElement('div');
       successMessage.className = 'fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg z-50 flex items-center gap-2';
       successMessage.innerHTML = `
@@ -458,6 +406,7 @@ const ProductsPanel: React.FC = () => {
       alert('Erro ao salvar programação. Tente novamente.');
     }
   };
+
   const applyDefaultComplementGroups = () => {
     setFormData(prev => ({
       ...prev,
