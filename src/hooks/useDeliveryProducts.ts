@@ -198,7 +198,7 @@ export const useDeliveryProducts = () => {
         .update(safeUpdate)
         .eq('id', id)
         .select('*')
-        .single();
+        .maybeSingle();
 
       if (error) {
         console.error('❌ Erro ao atualizar produto:', error);
@@ -211,7 +211,7 @@ export const useDeliveryProducts = () => {
         
         // Handle specific error cases
         if (error.code === 'PGRST116') {
-          throw new Error(`Produto com ID ${id} não encontrado para atualização.`);
+          throw new Error('Produto não encontrado. Ele pode ter sido excluído por outro usuário.');
         } else if (error.code === '23505') {
           throw new Error('Já existe um produto com este código ou nome. Use valores únicos.');
         } else if (error.code === '42501') {
@@ -264,7 +264,6 @@ export const useDeliveryProducts = () => {
       return false;
     }
   }, []);
-
   const syncWithDatabase = useCallback(async () => {
     console.log('🔄 Sincronizando produtos com banco de dados...');
     await fetchProducts();
@@ -380,7 +379,6 @@ export const useDeliveryProducts = () => {
     createProduct,
     updateProduct,
     deleteProduct,
-    validateProductExists,
     refetch: fetchProducts
   };
 };
