@@ -247,7 +247,7 @@ const ProductsPanel: React.FC = () => {
           }
         } catch (error) {
           errorCount++;
-          // Silently handle errors since getProductImage already logs them
+          const cleanImageUrl = editingProduct.image_url.split('?')[0];
           console.warn(`⚠️ Erro ao carregar imagem do produto ${product.name} - continuando sem imagem`);
         }
       }
@@ -373,8 +373,8 @@ const ProductsPanel: React.FC = () => {
           throw new Error('ID do produto inválido para atualização. Tente recarregar a página.');
         }
         
-        console.log('🔄 Atualizando produto existente:', editingProduct.id);
-        await updateProduct(editingProduct.id, cleanFormData);
+          const cleanImageUrl = editingProduct.image_url.split('?')[0];
+          await saveImageToProduct(cleanImageUrl, newProduct.id);
         console.log('✅ Produto atualizado');
       } else {
         console.log('➕ Criando novo produto');
