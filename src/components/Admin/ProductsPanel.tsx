@@ -390,6 +390,7 @@ export const useDeliveryProducts = () => {
     createProduct,
     updateProduct,
     deleteProduct,
+    validateProductExists,
     refetch: fetchProducts
   };
 };
