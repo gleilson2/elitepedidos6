@@ -200,7 +200,23 @@ export const useDeliveryProducts = () => {
         if (checkError || !existingProduct) {
           throw new Error(`Produto com ID ${id} não foi encontrado no banco de dados. O produto pode ter sido excluído.`);
         } else {
-          throw new Error(`Produto encontrado mas não foi possível atualizar. Verifique se há alterações para salvar.`);
+          // No changes were made - this is not an error, return the existing product
+          console.log('ℹ️ Nenhuma alteração detectada, retornando produto existente');
+          
+          // Get the full product data
+          const { data: fullProduct, error: fullError } = await supabase
+            .from('delivery_products')
+            .select('*')
+            .eq('id', id)
+            .single();
+            
+          if (fullError || !fullProduct) {
+            throw new Error(`Erro ao buscar dados completos do produto: ${fullError?.message || 'Produto não encontrado'}`);
+          }
+          
+          // Update local state with existing data
+          setProducts(prev => prev.map(p => p.id === id ? fullProduct : p));
+          return fullProduct;
         }
       }
 
