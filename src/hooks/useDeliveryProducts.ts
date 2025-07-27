@@ -185,17 +185,19 @@ export const useDeliveryProducts = () => {
           throw new Error('Já existe um produto com este código ou nome. Use valores únicos.');
         } else if (error.code === '42501') {
           throw new Error('Sem permissão para atualizar este produto. Verifique as políticas de segurança.');
-        // Handle specific error cases
-        if (error.code === 'PGRST116') {
-          // Product not found - this is a user error, not a system error
-          console.warn(`⚠️ Produto ${id} não encontrado no banco de dados`);
-          throw new Error(`Produto não encontrado. Ele pode ter sido excluído por outro usuário.`);
-        } else if (error.code === '23505') {
-          throw new Error('Já existe um produto com este código ou nome. Use valores únicos.');
-        } else if (error.code === '42501') {
-          throw new Error('Sem permissão para atualizar este produto.');
         } else {
-          throw new Error(`Erro ao atualizar produto: ${error.message || 'Erro desconhecido'}`);
+          // Handle specific error cases
+          if (error.code === 'PGRST116') {
+            // Product not found - this is a user error, not a system error
+            console.warn(`⚠️ Produto ${id} não encontrado no banco de dados`);
+            throw new Error(`Produto não encontrado. Ele pode ter sido excluído por outro usuário.`);
+          } else if (error.code === '23505') {
+            throw new Error('Já existe um produto com este código ou nome. Use valores únicos.');
+          } else if (error.code === '42501') {
+            throw new Error('Sem permissão para atualizar este produto.');
+          } else {
+            throw new Error(`Erro ao atualizar produto: ${error.message || 'Erro desconhecido'}`);
+          }
         }
       }
 
