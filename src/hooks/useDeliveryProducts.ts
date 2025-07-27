@@ -180,23 +180,7 @@ export const useDeliveryProducts = () => {
         
         // Handle specific error cases
         if (error.code === 'PGRST116') {
-          // No rows updated - check if product exists and treat as no-op if it does
-          console.log('ℹ️ Nenhuma linha atualizada (PGRST116) - verificando se produto existe...');
-          
-          const { data: existingProduct, error: checkError } = await supabase
-            .from('delivery_products')
-            .select('*')
-            .eq('id', id)
-            .single();
-            
-          if (checkError || !existingProduct) {
-            throw new Error(`Produto com ID ${id} não foi encontrado no banco de dados.`);
-          } else {
-            // Product exists but no changes were made - this is a successful no-op
-            console.log('✅ Produto existe, nenhuma alteração detectada - operação bem-sucedida');
-            setProducts(prev => prev.map(p => p.id === id ? existingProduct : p));
-            return existingProduct;
-          }
+          throw new Error(`Produto com ID ${id} não encontrado para atualização.`);
         } else if (error.code === '23505') {
           throw new Error('Já existe um produto com este código ou nome. Use valores únicos.');
         } else if (error.code === '42501') {
