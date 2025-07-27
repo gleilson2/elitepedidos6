@@ -123,35 +123,24 @@ export const useDeliveryProducts = () => {
         throw new Error('Supabase não configurado. Configure as variáveis de ambiente para usar esta funcionalidade.');
       }
 
-      // 1. First check if the product exists in the database
-      const { data: existingProduct, error: checkError } = await supabase
-        .from('delivery_products')
-        .select('*')
-        .eq('id', id)
-        .maybeSingle();
+      // Prepare clean update data - remove undefined values and system fields
+      const { 
+        created_at, 
+        updated_at, 
+        has_complements, 
+        id: updateId,
+        ...cleanUpdates 
+      } = updates as any;
 
-      if (checkError) {
-        console.error('❌ Erro ao verificar produto existente:', checkError);
-        throw new Error(`Erro ao verificar produto: ${checkError.message}`);
+      // Clean up complement_groups structure if present
+      if (cleanUpdates.complement_groups) {
+        // Ensure complement_groups is properly structured for database
+        cleanUpdates.complement_groups = Array.isArray(cleanUpdates.complement_groups) 
+          ? cleanUpdates.complement_groups 
+          : null;
       }
 
-      if (!existingProduct) {
-        console.error('❌ Produto não encontrado no banco:', id);
-        console.log('🔍 Produtos disponíveis no estado local:', products.map(p => ({ id: p.id, name: p.name })));
-        
-        // Try to refresh products from database
-        console.log('🔄 Tentando recarregar produtos do banco...');
-        await fetchProducts();
-        
-        throw new Error(`Produto com ID ${id} não foi encontrado no banco de dados. O produto pode ter sido excluído ou criado apenas localmente. Tente recarregar a página.`);
-      }
-
-      console.log('✅ Produto encontrado no banco:', existingProduct);
-
-      // 2. Prepare clean update data
-      const { created_at, updated_at, has_complements, ...cleanUpdates } = updates as any;
-
-      // 3. Remove undefined values and add updated_at
+      // Remove undefined values and add updated_at
       const safeUpdate = Object.fromEntries(
         Object.entries({
           ...cleanUpdates,
@@ -162,10 +151,11 @@ export const useDeliveryProducts = () => {
       console.log('📝 Dados para atualização:', {
         id,
         safeUpdate,
-        originalUpdates: updates
+        originalUpdates: updates,
+        supabaseUrl: supabaseUrl.substring(0, 30) + '...'
       });
 
-      // 4. Perform the update
+      // Perform the update with better error handling
       const { data, error } = await supabase
         .from('delivery_products')
         .update(safeUpdate)
@@ -174,25 +164,30 @@ export const useDeliveryProducts = () => {
 
       if (error) {
         console.error('❌ Erro ao atualizar produto:', error);
-        throw new Error(`Erro ao atualizar produto: ${error.message || 'Erro desconhecido'}`);
+        console.error('❌ Detalhes do erro:', {
+          code: error.code,
+          message: error.message,
+          details: error.details,
+          hint: error.hint
+        });
+        
+        // Handle specific error cases
+        if (error.code === '23505') {
+          throw new Error('Já existe um produto com este código ou nome. Use valores únicos.');
+        } else if (error.code === '42501') {
+          throw new Error('Sem permissão para atualizar este produto. Verifique as políticas de segurança.');
+        } else if (error.code === 'PGRST301') {
+          throw new Error('Produto não encontrado ou sem permissão para atualizá-lo.');
+        } else if (error.code === 'PGRST116') {
+          throw new Error('Nenhuma linha foi encontrada para atualizar. O produto pode não existir.');
+        } else {
+          throw new Error(`Erro ao atualizar produto: ${error.message || 'Erro desconhecido'}`);
+        }
       }
 
       if (!data || data.length === 0) {
-        // No rows were updated - values were already the same
-        console.log('ℹ️ Nenhuma linha foi atualizada - valores já eram os mesmos');
-        
-        // Return the existing product with updates applied
-        const updatedProduct = {
-          ...existingProduct,
-          ...cleanUpdates,
-          updated_at: new Date().toISOString()
-        };
-        
-        // Update local state
-        setProducts(prev => prev.map(p => p.id === id ? updatedProduct : p));
-        
-        console.log('✅ Produto atualizado localmente (sem mudanças no banco)');
-        return updatedProduct;
+        console.error('❌ Nenhuma linha foi atualizada - produto não encontrado');
+        throw new Error('Produto não foi encontrado para atualização. Verifique se o ID está correto.');
       }
 
       const updatedProduct = data[0];
@@ -208,7 +203,7 @@ export const useDeliveryProducts = () => {
       console.error('❌ Erro ao atualizar produto:', err);
       throw err;
     }
-  }, [fetchProducts, products]);
+  }, []);
 
   const syncWithDatabase = useCallback(async () => {
     console.log('🔄 Sincronizando produtos com banco de dados...');

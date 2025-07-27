@@ -336,39 +336,105 @@ const ProductsPanel: React.FC = () => {
     }
     
     try {
-      let savedProduct;
+      // Prepare clean data for saving
+      const cleanFormData = {
+        ...formData,
+        // Ensure complement_groups is properly formatted
+        complement_groups: formData.has_complements && formData.complement_groups 
+          ? formData.complement_groups.map(group => ({
+              id: group.id || `group-${Date.now()}-${Math.random()}`,
+              name: group.name,
+              required: group.required,
+              min_items: group.min_items,
+              max_items: group.max_items,
+              complements: group.options.map(option => ({
+                id: option.id || `comp-${Date.now()}-${Math.random()}`,
+                name: option.name,
+                price: option.price,
+                description: option.description
+              }))
+            }))
+          : null,
+        // Remove temporary fields
+        id: undefined
+      };
+
+      console.log('📝 Dados limpos para salvamento:', cleanFormData);
+      console.log('💾 Iniciando salvamento do produto:', {
+        id: editingProduct.id,
+        name: editingProduct.name,
+        isCreating,
+        hasId: !!editingProduct.id
+      });
+
       
       if (editingProduct) {
-        await updateProduct(editingProduct.id!, formData);
+        console.log('✏️ Atualizando produto existente:', editingProduct.id);
+        await updateProduct(editingProduct.id!, cleanFormData);
       } else {
-        const newProduct = await createProduct(formData);
-        setEditingProduct(newProduct);
+        console.log('➕ Criando novo produto');
+        
+        // Verificar se o produto tem ID válido
+        if (!editingProduct.id) {
+          throw new Error('ID do produto não encontrado. Não é possível atualizar.');
+        }
+        
+        const newProduct = await createProduct(cleanFormData);
+        console.log('✅ Produto criado:', newProduct);
       }
+      
       setShowModal(false);
       resetForm();
       
       // Show success message
-      alert(`Produto ${editingProduct ? 'atualizado' : 'criado'} com sucesso!`);
+      const successMessage = document.createElement('div');
+      successMessage.className = 'fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg z-50 flex items-center gap-2';
+      successMessage.innerHTML = `
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+        </svg>
+        Produto ${editingProduct ? 'atualizado' : 'criado'} com sucesso!
+      `;
+      document.body.appendChild(successMessage);
       
-      // Refresh products list
-      
-      // Forçar recarregamento dos produtos após salvar
-      console.log('✅ Produto salvo, recarregando lista...');
       setTimeout(() => {
-        window.location.reload();
-      }, 1000);
+        if (document.body.contains(successMessage)) {
+          document.body.removeChild(successMessage);
+        }
+      }, 3000);
       
     } catch (error) {
       console.error('Erro ao salvar produto:', error);
 
       // Mostrar erro detalhado
       const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
-      alert(`Erro ao salvar produto: ${errorMessage}\n\nDetalhes: ${JSON.stringify(error)}`);
+      
+      // Show error message
+      const errorDiv = document.createElement('div');
+      errorDiv.className = 'fixed top-4 right-4 bg-red-500 text-white px-4 py-2 rounded-lg shadow-lg z-50 max-w-md';
+      errorDiv.innerHTML = `
+        <div class="flex items-start gap-2">
+          <svg class="w-5 h-5 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+          </svg>
+          <div>
+            <p class="font-medium">Erro ao salvar produto</p>
+            <p class="text-sm opacity-90">${errorMessage}</p>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(errorDiv);
+      
+      setTimeout(() => {
+        if (document.body.contains(errorDiv)) {
+          document.body.removeChild(errorDiv);
+        }
+      }, 5000);
       
       // Log completo do erro
       console.error('Erro completo:', {
         error,
-        formData,
+        cleanFormData,
         editingProduct
       });
     }
@@ -434,9 +500,35 @@ const ProductsPanel: React.FC = () => {
       setTimeout(() => {
         if (document.body.contains(successMessage)) {
           document.body.removeChild(successMessage);
+        if (document.body.contains(successMessage)) {
+          document.body.removeChild(successMessage);
         }
       }, 3000);
-    } catch (error) {
+      
+      // Show detailed error message
+      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
+      
+      // Create error notification
+      const errorNotification = document.createElement('div');
+      errorNotification.className = 'fixed top-4 right-4 bg-red-500 text-white px-4 py-2 rounded-lg shadow-lg z-50 max-w-md';
+      errorNotification.innerHTML = `
+        <div class="flex items-start gap-2">
+          <svg class="w-5 h-5 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+          </svg>
+          <div>
+            <p class="font-medium">Erro ao salvar produto</p>
+            <p class="text-sm mt-1">${errorMessage}</p>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(errorNotification);
+      
+      setTimeout(() => {
+        if (document.body.contains(errorNotification)) {
+          document.body.removeChild(errorNotification);
+        }
+      }, 5000);
       console.error('Erro ao salvar programação:', error);
       alert('Erro ao salvar programação. Tente novamente.');
     }
