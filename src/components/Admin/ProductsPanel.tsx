@@ -368,10 +368,19 @@ const ProductsPanel: React.FC = () => {
       });
 
       
-      if (editingProduct) {
-        console.log('✏️ Atualizando produto existente:', editingProduct.id);
-        await updateProduct(editingProduct.id!, cleanFormData);
+        const { id, created_at, updated_at, ...productData } = editingProduct;
+        console.log('🔍 Produto para criação:', productData);
+        const newProduct = await createProduct(productData);
+        
+        // Update the editing product with the actual ID from database
+        setEditingProduct(prev => prev ? { ...prev, id: newProduct.id } : null);
+        console.log('✅ Produto criado com ID:', newProduct.id);
       } else {
+        // Verify we have a valid ID before updating
+        if (!editingProduct.id || editingProduct.id.startsWith('temp-')) {
+          throw new Error('ID do produto inválido para atualização. Tente recarregar a página.');
+        }
+        
         console.log('➕ Criando novo produto');
         
         const newProduct = await createProduct(cleanFormData);
@@ -400,7 +409,9 @@ const ProductsPanel: React.FC = () => {
       
     } catch (error) {
       console.error('Erro ao salvar produto:', error);
-
+      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
+      console.error('Detalhes do erro:', errorMessage);
+      alert(`Erro ao salvar produto: ${errorMessage}`);
       // Mostrar erro detalhado
       const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
       

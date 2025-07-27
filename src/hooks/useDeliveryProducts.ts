@@ -186,8 +186,22 @@ export const useDeliveryProducts = () => {
       }
 
       if (!data || data.length === 0) {
-        console.error('❌ Nenhuma linha foi atualizada - produto não encontrado');
-        throw new Error('Produto não foi encontrado para atualização. Verifique se o ID está correto.');
+        console.error('❌ Nenhuma linha foi atualizada - produto não encontrado ou sem alterações');
+        console.error('❌ ID usado para atualização:', id);
+        console.error('❌ Dados enviados:', safeUpdate);
+        
+        // Check if product exists
+        const { data: existingProduct, error: checkError } = await supabase
+          .from('delivery_products')
+          .select('id, name')
+          .eq('id', id)
+          .single();
+          
+        if (checkError || !existingProduct) {
+          throw new Error(`Produto com ID ${id} não foi encontrado no banco de dados. O produto pode ter sido excluído.`);
+        } else {
+          throw new Error(`Produto encontrado mas não foi possível atualizar. Verifique se há alterações para salvar.`);
+        }
       }
 
       const updatedProduct = data[0];
