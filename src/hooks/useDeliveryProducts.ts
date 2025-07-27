@@ -105,8 +105,8 @@ export const useDeliveryProducts = () => {
       if (error) throw error;
       
       // Check if data was returned from the insert operation
-      if (!data || (Array.isArray(data) && data.length === 0)) {
-        throw new Error('Resposta inesperada do servidor - nenhum dado retornado após criação');
+      if (!data) {
+        return null;
       }
       
       const newProduct = Array.isArray(data) ? data[0] : data;
@@ -208,9 +208,8 @@ export const useDeliveryProducts = () => {
       }
 
       if (!data || data.length === 0) {
-        // This should not happen if error handling above is correct
-        console.warn('⚠️ Nenhum dado retornado mas sem erro - situação inesperada');
-        throw new Error('Resposta inesperada do servidor - nenhum dado retornado');
+        console.warn('⚠️ Nenhum dado retornado - produto pode não ter sido encontrado');
+        return null;
       }
 
       const updatedProduct = Array.isArray(data) ? data[0] : data;
