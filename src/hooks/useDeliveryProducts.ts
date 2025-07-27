@@ -148,6 +148,12 @@ export const useDeliveryProducts = () => {
       }
 
       console.log('✅ Produto atualizado com sucesso');
+    } catch (err) {
+      throw new Error(err instanceof Error ? err.message : 'Erro ao atualizar produto');
+    }
+  }, []);
+
+  const deleteProduct = useCallback(async (id: string) => {
     try {
       const { error } = await supabase
         .from('delivery_products')
