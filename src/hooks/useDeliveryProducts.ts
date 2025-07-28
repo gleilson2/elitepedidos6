@@ -101,8 +101,8 @@ export const useDeliveryProducts = () => {
       
       console.log('✅ Produto criado no banco com ID:', data.id);
       
-      // Atualizar estado local apenas após confirmação do banco
-      setProducts(prev => [...prev, data]);
+      // NÃO atualizar estado local - deixar o realtime fazer isso
+      console.log('🔄 Aguardando sincronização via realtime...');
       
       return data;
     } catch (err) {
@@ -170,8 +170,8 @@ export const useDeliveryProducts = () => {
 
       console.log('✅ Produto atualizado com sucesso');
       
-      // Atualizar estado local
-      setProducts(prev => prev.map(p => p.id === id ? { ...p, ...updates } : p));
+      // NÃO atualizar estado local - deixar o realtime fazer isso
+      console.log('🔄 Aguardando sincronização via realtime...');
     } catch (err) {
       throw new Error(err instanceof Error ? err.message : 'Erro ao atualizar produto');
     }
@@ -202,7 +202,8 @@ export const useDeliveryProducts = () => {
       }
       
       console.log('✅ Produto deletado com sucesso');
-      setProducts(prev => prev.filter(p => p.id !== id));
+      // NÃO atualizar estado local - deixar o realtime fazer isso
+      console.log('🔄 Aguardando sincronização via realtime...');
     } catch (err) {
       throw new Error(err instanceof Error ? err.message : 'Erro ao excluir produto');
     }
