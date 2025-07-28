@@ -48,10 +48,17 @@ export const useDeliveryProducts = () => {
       
       console.log('🔄 Carregando produtos do banco de dados...');
       
-      const { data, error } = await supabase
+      // Add timeout to prevent hanging
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Timeout: Carregamento de produtos demorou mais de 10 segundos')), 10000);
+      });
+      
+      const fetchPromise = supabase
         .from('delivery_products')
         .select('*')
         .order('name');
+      
+      const { data, error } = await Promise.race([fetchPromise, timeoutPromise]);
 
       if (error) throw error;
       

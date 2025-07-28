@@ -290,10 +290,10 @@ export const useImageUpload = () => {
       try {
         // Add timeout and retry logic for network issues
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+        const timeoutId = setTimeout(() => controller.abort(), 5000); // Reduced to 5 seconds
         
         let retryCount = 0;
-        const maxRetries = 3;
+        const maxRetries = 1; // Reduced retries for faster loading
         
         while (retryCount < maxRetries) {
           try {
@@ -331,7 +331,7 @@ export const useImageUpload = () => {
             
             if (retryCount < maxRetries) {
               // Wait before retry with exponential backoff
-              await new Promise(resolve => setTimeout(resolve, 1000 * retryCount));
+              await new Promise(resolve => setTimeout(resolve, 500 * retryCount)); // Faster retry
             }
           }
         }

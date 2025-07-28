@@ -232,13 +232,19 @@ const ProductsPanel: React.FC = () => {
         return;
       }
       
+      // Skip image loading if there are too many products
+      if (products.length > 20) {
+        console.log('⚠️ Muitos produtos (>20) - pulando carregamento de imagens para melhor performance');
+        return;
+      }
+      
       console.log('🔄 Carregando imagens dos produtos...');
       const images: Record<string, string> = {};
       let successCount = 0;
       let errorCount = 0;
       
       // Load images in batches to avoid overwhelming the network
-      const batchSize = 5;
+      const batchSize = 3; // Reduced batch size
       for (let i = 0; i < products.length; i += batchSize) {
         const batch = products.slice(i, i + batchSize);
         
@@ -260,7 +266,7 @@ const ProductsPanel: React.FC = () => {
         
         // Small delay between batches to avoid rate limiting
         if (i + batchSize < products.length) {
-          await new Promise(resolve => setTimeout(resolve, 100));
+          await new Promise(resolve => setTimeout(resolve, 200)); // Increased delay
         }
       }
       
@@ -271,8 +277,10 @@ const ProductsPanel: React.FC = () => {
     };
 
     // Only load images if we have products and Supabase is configured
-    if (products.length > 0) {
+    if (products.length > 0 && products.length <= 20) {
       loadProductImages();
+    } else if (products.length > 20) {
+      console.log('⚠️ Performance: Carregamento de imagens desabilitado para muitos produtos');
     }
   }, [products, getProductImage]);
 
