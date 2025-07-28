@@ -39,30 +39,9 @@ export const useDeliveryProducts = () => {
           supabaseUrl === 'your_supabase_url_here' || 
           supabaseKey === 'your_supabase_anon_key_here' ||
           supabaseUrl.includes('placeholder')) {
-        console.warn('⚠️ Supabase não configurado - usando produtos de demonstração');
-        
-        // Fallback para produtos de demonstração se Supabase não estiver configurado
-        const { products: demoProducts } = await import('../data/products');
-        const mappedProducts = demoProducts.map(product => ({
-          id: product.id,
-          name: product.name,
-          category: product.category as DeliveryProduct['category'],
-          price: product.price,
-          original_price: product.originalPrice,
-          description: product.description,
-          image_url: product.image,
-          is_active: product.isActive !== false,
-          is_weighable: product.is_weighable || false,
-          price_per_gram: product.pricePerGram,
-          complement_groups: product.complementGroups,
-          sizes: product.sizes,
-          scheduled_days: product.scheduledDays,
-          availability_type: product.availability?.type || 'always',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        }));
-        
-        setProducts(mappedProducts);
+        console.error('❌ Supabase não configurado - não é possível carregar produtos');
+        setError('Supabase não configurado. Configure as variáveis de ambiente para carregar produtos.');
+        setProducts([]);
         setLoading(false);
         return;
       }
