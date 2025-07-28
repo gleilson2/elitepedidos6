@@ -323,8 +323,8 @@ const ProductsPanel: React.FC = () => {
   const handleRefreshProducts = async () => {
     try {
       console.log('🔄 Recarregando produtos...');
-      // Force refresh from database
-      window.location.reload();
+      // Recarregar produtos do banco de dados
+      await refetch();
     } catch (error) {
       console.error('Erro ao recarregar produtos:', error);
     }
