@@ -29,23 +29,6 @@ export const useProductScheduling = () => {
   const fetchSchedules = useCallback(async () => {
     try {
       setLoading(true);
-      
-      // Check if Supabase is properly configured
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-      const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-      
-      if (!supabaseUrl || !supabaseKey || 
-          supabaseUrl === 'your_supabase_url_here' || 
-          supabaseKey === 'your_supabase_anon_key_here' ||
-          supabaseUrl.includes('placeholder') ||
-          supabaseKey.includes('placeholder')) {
-        console.error('❌ Supabase não configurado - não é possível carregar programações');
-        setError('Supabase não configurado. Configure as variáveis de ambiente para carregar programações.');
-        setSchedules({});
-        setLoading(false);
-        return;
-      }
-      
       const { data, error } = await supabase
         .from('product_schedules')
         .select('*');

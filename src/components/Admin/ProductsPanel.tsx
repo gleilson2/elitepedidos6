@@ -232,41 +232,34 @@ const ProductsPanel: React.FC = () => {
         return;
       }
       
-      // Skip image loading if there are too many products
-      if (products.length > 20) {
-        console.log('⚠️ Muitos produtos (>20) - pulando carregamento de imagens para melhor performance');
-        return;
-      }
-      
       console.log('🔄 Carregando imagens dos produtos...');
       const images: Record<string, string> = {};
       let successCount = 0;
       let errorCount = 0;
       
-      // Load images in batches to avoid overwhelming the network
-      const batchSize = 3; // Reduced batch size
-      for (let i = 0; i < products.length; i += batchSize) {
-        const batch = products.slice(i, i + batchSize);
-        
-        await Promise.allSettled(
-          batch.map(async (product) => {
-            try {
-              const savedImage = await getProductImage(product.id);
-              if (savedImage) {
-                images[product.id] = savedImage;
-                successCount++;
-                console.log(`✅ Imagem carregada para produto ${product.name}`);
-              }
-            } catch (error) {
-              errorCount++;
-              console.warn(`⚠️ Erro ao carregar imagem do produto ${product.name} - continuando sem imagem`);
-            }
-          })
-        );
-        
-        // Small delay between batches to avoid rate limiting
-        if (i + batchSize < products.length) {
-          await new Promise(resolve => setTimeout(resolve, 200)); // Increased delay
+      // Load images with timeout and error handling
+      for (const product of products) {
+        try {
+          // Add timeout for each image load
+          const imagePromise = getProductImage(product.id);
+          const timeoutPromise = new Promise<string | null>((_, reject) => {
+            setTimeout(() => reject(new Error('Image load timeout')), 3000);
+          });
+          
+          const savedImage = await Promise.race([imagePromise, timeoutPromise]);
+          if (savedImage) {
+            images[product.id] = savedImage;
+            successCount++;
+            console.log(`✅ Imagem carregada para produto ${product.name}:`, savedImage.substring(0, 50) + '...');
+          }
+        } catch (error) {
+          errorCount++;
+          // Handle timeout and network errors gracefully
+          if (error instanceof Error && error.message === 'Image load timeout') {
+            console.warn(`⏱️ Timeout ao carregar imagem do produto ${product.name} - continuando sem imagem`);
+          } else {
+            console.warn(`⚠️ Erro ao carregar imagem do produto ${product.name} - continuando sem imagem`);
+          }
         }
       }
       
@@ -277,10 +270,8 @@ const ProductsPanel: React.FC = () => {
     };
 
     // Only load images if we have products and Supabase is configured
-    if (products.length > 0 && products.length <= 20) {
+    if (products.length > 0) {
       loadProductImages();
-    } else if (products.length > 20) {
-      console.log('⚠️ Performance: Carregamento de imagens desabilitado para muitos produtos');
     }
   }, [products, getProductImage]);
 
@@ -332,8 +323,8 @@ const ProductsPanel: React.FC = () => {
   const handleRefreshProducts = async () => {
     try {
       console.log('🔄 Recarregando produtos...');
-      // Recarregar produtos do banco de dados
-      await refetch();
+      // Force refresh from database
+      window.location.reload();
     } catch (error) {
       console.error('Erro ao recarregar produtos:', error);
     }

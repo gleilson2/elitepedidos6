@@ -38,8 +38,7 @@ export const useDeliveryProducts = () => {
       if (!supabaseUrl || !supabaseKey || 
           supabaseUrl === 'your_supabase_url_here' || 
           supabaseKey === 'your_supabase_anon_key_here' ||
-          supabaseUrl.includes('placeholder') ||
-          supabaseKey.includes('placeholder')) {
+          supabaseUrl.includes('placeholder')) {
         console.error('❌ Supabase não configurado - não é possível carregar produtos');
         setError('Supabase não configurado. Configure as variáveis de ambiente para carregar produtos.');
         setProducts([]);
@@ -102,8 +101,8 @@ export const useDeliveryProducts = () => {
       
       console.log('✅ Produto criado no banco com ID:', data.id);
       
-      // NÃO atualizar estado local - deixar o realtime fazer isso
-      console.log('🔄 Aguardando sincronização via realtime...');
+      // Atualizar estado local apenas após confirmação do banco
+      setProducts(prev => [...prev, data]);
       
       return data;
     } catch (err) {
@@ -171,8 +170,8 @@ export const useDeliveryProducts = () => {
 
       console.log('✅ Produto atualizado com sucesso');
       
-      // NÃO atualizar estado local - deixar o realtime fazer isso
-      console.log('🔄 Aguardando sincronização via realtime...');
+      // Atualizar estado local
+      setProducts(prev => prev.map(p => p.id === id ? { ...p, ...updates } : p));
     } catch (err) {
       throw new Error(err instanceof Error ? err.message : 'Erro ao atualizar produto');
     }
@@ -203,8 +202,7 @@ export const useDeliveryProducts = () => {
       }
       
       console.log('✅ Produto deletado com sucesso');
-      // NÃO atualizar estado local - deixar o realtime fazer isso
-      console.log('🔄 Aguardando sincronização via realtime...');
+      setProducts(prev => prev.filter(p => p.id !== id));
     } catch (err) {
       throw new Error(err instanceof Error ? err.message : 'Erro ao excluir produto');
     }
