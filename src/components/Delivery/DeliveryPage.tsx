@@ -65,8 +65,12 @@ const DeliveryPage: React.FC = () => {
     }
   }, []);
   
-  // Converter produtos do banco para o formato esperado pelo componente
+  // Usar produtos diretamente do banco de dados
   const products = React.useMemo(() => {
+    if (!deliveryProducts || deliveryProducts.length === 0) {
+      return [];
+    }
+
     return deliveryProducts.map(dbProduct => ({
       id: dbProduct.id,
       name: dbProduct.name,
@@ -189,11 +193,15 @@ const DeliveryPage: React.FC = () => {
       count: getPromotionsOfTheDay(activeProducts).length
     }] : []),
     { id: 'all' as const, label: 'Todos', count: activeProducts.length },
-    ...Object.entries(categoryNames).map(([key, label]) => ({ 
-      id: key as keyof typeof categoryNames, 
-      label,
-      count: activeProducts.filter(p => p.category === key).length
-    }))
+    { id: 'acai' as const, label: 'Açaí', count: activeProducts.filter(p => p.category === 'acai').length },
+    { id: 'combo' as const, label: 'Combos', count: activeProducts.filter(p => p.category === 'combo').length },
+    { id: 'milkshake' as const, label: 'Milkshakes', count: activeProducts.filter(p => p.category === 'milkshake').length },
+    { id: 'vitamina' as const, label: 'Vitaminas', count: activeProducts.filter(p => p.category === 'vitamina').length },
+    { id: 'sorvetes' as const, label: 'Sorvetes', count: activeProducts.filter(p => p.category === 'sorvetes').length },
+    { id: 'bebidas' as const, label: 'Bebidas', count: activeProducts.filter(p => p.category === 'bebidas').length },
+    { id: 'complementos' as const, label: 'Complementos', count: activeProducts.filter(p => p.category === 'complementos').length },
+    { id: 'sobremesas' as const, label: 'Sobremesas', count: activeProducts.filter(p => p.category === 'sobremesas').length },
+    { id: 'outros' as const, label: 'Outros', count: activeProducts.filter(p => p.category === 'outros').length }
   ];
 
   // Verificar se a loja está aberta
@@ -324,7 +332,7 @@ const DeliveryPage: React.FC = () => {
                 ? getTodaySpecialMessage()
                 : selectedCategory === 'all' 
                   ? 'Nosso Cardápio' 
-                  : categoryNames[selectedCategory as keyof typeof categoryNames]
+                  : availableCategories.find(cat => cat.id === selectedCategory)?.label || 'Produtos'
               }
             </h2>
             <p className="text-gray-600 max-w-2xl mx-auto">
