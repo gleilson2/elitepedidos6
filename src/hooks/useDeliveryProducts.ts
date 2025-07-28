@@ -98,6 +98,10 @@ export const useDeliveryProducts = () => {
         throw new Error('Supabase não configurado. Configure as variáveis de ambiente para usar esta funcionalidade.');
       }
       
+      // Verificar se o usuário está autenticado
+      const { data: { user } } = await supabase.auth.getUser();
+      console.log('👤 Usuário atual:', user);
+      
       const { data, error } = await supabase
         .from('delivery_products')
         .insert([{
@@ -124,17 +128,48 @@ export const useDeliveryProducts = () => {
       return data;
     } catch (err) {
       console.error('❌ Erro ao criar produto:', err);
+      
+      // Verificar se é erro de RLS
+      if (err.code === 'PGRST301' || err.message?.includes('permission denied') || err.message?.includes('RLS')) {
+        throw new Error('Erro de permissão: Verifique se você tem acesso para criar produtos. Entre em contato com o administrador.');
+      }
+      
       throw new Error(err instanceof Error ? err.message : 'Erro ao criar produto');
     }
   }, []);
 
   const updateProduct = useCallback(async (id: string, updates: Partial<DeliveryProduct>) => {
     try {
+      console.log('✏️ Atualizando produto:', id, updates);
+      
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
       if (!supabaseUrl || supabaseUrl.includes('placeholder')) {
         throw new Error('Supabase não configurado. Configure as variáveis de ambiente para usar esta funcionalidade.');
       }
 
+      // Verificar se o usuário está autenticado
+      const { data: { user } } = await supabase.auth.getUser();
+      console.log('👤 Usuário atual para update:', user);
+      
+      // Primeiro verificar se o produto existe
+      const { data: existingProduct, error: checkError } = await supabase
+        .from('delivery_products')
+        .select('id')
+        .eq('id', id)
+        .maybeSingle();
+      
+      if (checkError) {
+        console.error('❌ Erro ao verificar produto:', checkError);
+        throw new Error(`Erro ao verificar produto: ${checkError.message}`);
+      }
+      
+      if (!existingProduct) {
+        console.error('❌ Produto não encontrado:', id);
+        throw new Error('Produto não encontrado no banco de dados');
+      }
+      
+      console.log('✅ Produto encontrado, prosseguindo com update');
+      
       const { error } = await supabase
         .from('delivery_products')
         .update({
@@ -144,10 +179,20 @@ export const useDeliveryProducts = () => {
         .eq('id', id);
 
       if (error) {
+        console.error('❌ Erro no update:', error);
+        
+        // Verificar se é erro de RLS
+        if (error.code === 'PGRST301' || error.message?.includes('permission denied') || error.message?.includes('RLS')) {
+          throw new Error('Erro de permissão: Verifique se você tem acesso para atualizar produtos. Entre em contato com o administrador.');
+        }
+        
         throw new Error(`Erro ao atualizar produto: ${error.message}`);
       }
 
       console.log('✅ Produto atualizado com sucesso');
+      
+      // Atualizar estado local
+      setProducts(prev => prev.map(p => p.id === id ? { ...p, ...updates } : p));
     } catch (err) {
       throw new Error(err instanceof Error ? err.message : 'Erro ao atualizar produto');
     }
@@ -155,13 +200,29 @@ export const useDeliveryProducts = () => {
 
   const deleteProduct = useCallback(async (id: string) => {
     try {
+      console.log('🗑️ Deletando produto:', id);
+      
+      // Verificar se o usuário está autenticado
+      const { data: { user } } = await supabase.auth.getUser();
+      console.log('👤 Usuário atual para delete:', user);
+      
       const { error } = await supabase
         .from('delivery_products')
         .delete()
         .eq('id', id);
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Erro no delete:', error);
+        
+        // Verificar se é erro de RLS
+        if (error.code === 'PGRST301' || error.message?.includes('permission denied') || error.message?.includes('RLS')) {
+          throw new Error('Erro de permissão: Verifique se você tem acesso para deletar produtos. Entre em contato com o administrador.');
+        }
+        
+        throw error;
+      }
       
+      console.log('✅ Produto deletado com sucesso');
       setProducts(prev => prev.filter(p => p.id !== id));
     } catch (err) {
       throw new Error(err instanceof Error ? err.message : 'Erro ao excluir produto');

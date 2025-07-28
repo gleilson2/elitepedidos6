@@ -339,9 +339,13 @@ const ProductsPanel: React.FC = () => {
     }
 
     try {
+      console.log('📝 Iniciando submit:', { isEditing: !!editingProduct, formData });
+      
       if (editingProduct) {
+        console.log('✏️ Modo edição - ID:', editingProduct.id);
         await updateProduct(editingProduct.id!, formData);
       } else {
+        console.log('➕ Modo criação');
         await createProduct(formData);
       }
       setShowModal(false);
@@ -352,7 +356,13 @@ const ProductsPanel: React.FC = () => {
     } catch (error) {
       console.error('Erro ao salvar produto:', error);
       const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
-      alert(`Erro ao salvar produto: ${errorMessage}`);
+      
+      // Mostrar erro mais detalhado
+      if (errorMessage.includes('permission denied') || errorMessage.includes('RLS')) {
+        alert(`Erro de permissão: ${errorMessage}\n\nVerifique se:\n1. Você está logado no sistema\n2. Tem permissões para esta operação\n3. As políticas RLS estão configuradas corretamente`);
+      } else {
+        alert(`Erro ao salvar produto: ${errorMessage}`);
+      }
     }
   };
 
