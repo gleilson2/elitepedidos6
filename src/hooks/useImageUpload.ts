@@ -288,31 +288,56 @@ export const useImageUpload = () => {
       const cleanProductId = productId;
             
       try {
-        // Add timeout to prevent hanging requests
+        // Add timeout and retry logic for network issues
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 5000);
+        const timeoutId = setTimeout(() => controller.abort(), 10000); // Increased timeout
         
-        const { data, error } = await supabase
-          .from('product_image_associations')
-          .select(`
-            image:product_images(public_url)
-          `)
-          .eq('product_id', cleanProductId)
-          .maybeSingle()
-          .abortSignal(controller.signal);
+        let retryCount = 0;
+        const maxRetries = 3;
+        
+        while (retryCount < maxRetries) {
+          try {
+            const { data, error } = await supabase
+              .from('product_image_associations')
+              .select(`
+                image:product_images(public_url)
+              `)
+              .eq('product_id', cleanProductId)
+              .maybeSingle()
+              .abortSignal(controller.signal);
+            
+            clearTimeout(timeoutId);
+            
+            if (error) {
+              console.warn(`⚠️ Database error loading image for product ${cleanProductId}:`, error.message);
+              return null;
+            }
+
+            if (!data) {
+              return null;
+            }
+            
+            return data.image?.public_url || null;
+          } catch (retryError) {
+            retryCount++;
+            
+            if (retryError.name === 'AbortError') {
+              console.warn(`⏱️ Request timeout loading image for product ${cleanProductId} (attempt ${retryCount})`);
+            } else if (retryError instanceof TypeError && retryError.message.includes('Failed to fetch')) {
+              console.warn(`🌐 Network error loading image for product ${cleanProductId} (attempt ${retryCount})`);
+            } else {
+              throw retryError; // Re-throw non-network errors
+            }
+            
+            if (retryCount < maxRetries) {
+              // Wait before retry with exponential backoff
+              await new Promise(resolve => setTimeout(resolve, 1000 * retryCount));
+            }
+          }
+        }
         
         clearTimeout(timeoutId);
-        
-        if (error) {
-          console.warn(`⚠️ Database error loading image for product ${cleanProductId}:`, error.message);
-          return null;
-        }
-
-        if (!data) {
-          return null;
-        }
-        
-        return data.image?.public_url || null;
+        return null; // All retries failed
       } catch (fetchError) {
         // Handle network and timeout errors gracefully
         if (fetchError instanceof TypeError && fetchError.message.includes('Failed to fetch')) {
