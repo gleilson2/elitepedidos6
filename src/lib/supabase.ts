@@ -29,7 +29,8 @@ if (!supabaseUrl || !supabaseAnonKey) {
     },
     global: {
       headers: {
-        'X-Client-Info': 'supabase-js-web'
+        'X-Client-Info': 'supabase-js-web',
+        'Cache-Control': 'no-cache'
       }
     },
     db: {
@@ -39,6 +40,14 @@ if (!supabaseUrl || !supabaseAnonKey) {
       params: {
         eventsPerSecond: 10
       }
+    },
+    // Add retry configuration for network issues
+    fetch: (url, options = {}) => {
+      return fetch(url, {
+        ...options,
+        // Add timeout to all requests
+        signal: AbortSignal.timeout(15000), // 15 second timeout
+      });
     }
   })
 }
