@@ -8,7 +8,11 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 let supabase: ReturnType<typeof createClient>
 
 // Check if environment variables are available
-if (!supabaseUrl || !supabaseAnonKey) {
+if (!supabaseUrl || !supabaseAnonKey || 
+    supabaseUrl === 'your_supabase_url_here' || 
+    supabaseAnonKey === 'your_supabase_anon_key_here' ||
+    supabaseUrl.includes('placeholder') ||
+    supabaseAnonKey.includes('placeholder')) {
   console.warn('⚠️ Supabase environment variables are missing or contain placeholder values')
   console.warn('⚠️ Some features requiring database access will not work')
   console.warn('⚠️ Please set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your .env file')
@@ -41,14 +45,6 @@ if (!supabaseUrl || !supabaseAnonKey) {
         eventsPerSecond: 10
       }
     },
-    // Add retry configuration for network issues
-    fetch: (url, options = {}) => {
-      return fetch(url, {
-        ...options,
-        // Add timeout to all requests
-        signal: AbortSignal.timeout(30000), // 30 second timeout
-      });
-    }
   })
 }
 

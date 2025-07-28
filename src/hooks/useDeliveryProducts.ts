@@ -38,7 +38,8 @@ export const useDeliveryProducts = () => {
       if (!supabaseUrl || !supabaseKey || 
           supabaseUrl === 'your_supabase_url_here' || 
           supabaseKey === 'your_supabase_anon_key_here' ||
-          supabaseUrl.includes('placeholder')) {
+          supabaseUrl.includes('placeholder') ||
+          supabaseKey.includes('placeholder')) {
         console.error('❌ Supabase não configurado - não é possível carregar produtos');
         setError('Supabase não configurado. Configure as variáveis de ambiente para carregar produtos.');
         setProducts([]);
@@ -48,17 +49,10 @@ export const useDeliveryProducts = () => {
       
       console.log('🔄 Carregando produtos do banco de dados...');
       
-      // Add timeout to prevent hanging
-      const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Timeout: Carregamento de produtos demorou mais de 25 segundos')), 25000);
-      });
-      
-      const fetchPromise = supabase
+      const { data, error } = await supabase
         .from('delivery_products')
         .select('*')
         .order('name');
-      
-      const { data, error } = await Promise.race([fetchPromise, timeoutPromise]);
 
       if (error) throw error;
       
