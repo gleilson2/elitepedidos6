@@ -290,7 +290,7 @@ export const useImageUpload = () => {
       try {
         // Add timeout and retry logic for network issues
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 10000); // Increased timeout
+        const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
         
         let retryCount = 0;
         const maxRetries = 3;

@@ -46,7 +46,7 @@ if (!supabaseUrl || !supabaseAnonKey) {
       return fetch(url, {
         ...options,
         // Add timeout to all requests
-        signal: AbortSignal.timeout(15000), // 15 second timeout
+        signal: AbortSignal.timeout(30000), // 30 second timeout
       });
     }
   })
